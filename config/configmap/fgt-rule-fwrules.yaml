@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fgt-rule-fwrules
+  labels:
+    app.kubernetes.io/component: fgt-operator-rule
+data:
+  rule.json: |
+    {
+      "rules": {
+        "fwrules": {
+          "listField": "spec.extraItems",
+          "itemMappings": {
+            "FGT_POLICY_NAME": "ruleName",
+            "FGT_RESOURCE_NAME": "ruleName"
+          },
+          "validate": {
+            "FGT_POLICY_NAME": { "required": true, "pattern": "^[A-Za-z0-9_-]+$" }
+          }
+        }
+      }
+    }

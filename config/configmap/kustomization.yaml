@@ -1,0 +1,8 @@
+resources:
+- terraform_fw_rules.yaml
+- main_config.yaml
+- fgt-rule-interface.yaml
+- fgt-rule-create-vip.yaml
+- fgt-rule-fwrules.yaml
+- fgt-rule-common.yaml
+- fgt-rule-global.yaml

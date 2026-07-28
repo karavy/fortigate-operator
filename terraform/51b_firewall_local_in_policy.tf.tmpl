@@ -1,0 +1,21 @@
+<FGT_FOR_STR><LOCALINPOLICIES>
+resource "fortios_firewall_localinpolicy" "<LOCALINPOLICIES_NAME>" {
+  intf     = "any"
+  schedule = "always"
+
+  dstaddr {
+    name = "all"
+  }
+  service {
+    name = "ALL"
+  }
+
+  internet_service_src = "enable"
+
+  <FGT_FOR_STR><INTERNETSERVICESRCNAMES>
+  internet_service_src_name {
+    name = "<LOCALINPOLICIES_INTERNETSERVICESRCNAMES_VALUE>"
+  }
+  <FGT_FOR_END>
+}
+<FGT_FOR_END>

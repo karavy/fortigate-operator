@@ -1,0 +1,27 @@
+apiVersion: k8s.dinova.one/v1
+kind: FortigateFirewall
+metadata:
+  labels:
+    app.kubernetes.io/name: k8s-operator-fortigate
+    app.kubernetes.io/managed-by: kustomize
+  name: fortigatefirewall-trial
+spec:
+  sshPrivateKey: <CHIAVE SSH PRIVATA>
+  fortigateName: "<NOME FIREWALL>"
+  fortigateVersion: "v766m"
+  pvcStorageClass: "<STORAGECLASS>"
+  s3BucketName: "nuovo-bucket-us-east-1"
+  awsCredentialSecretName: "aws-credentials"
+  licenseType: trial #none, flex, file, trial
+  licenseUserSecretName: "forti-portal" #required if licenseType is flex or trial
+  vmUUID: "4f8e2c1a-9b3d-4a7e-8f1c-2d5e6a9b0c3d"
+  ports:
+    - name: "port1"
+      networkName: "linux-bridge-net-ipam"
+      index: 0
+    - name: "port2"
+      networkName: "linux-bridge-net-ipam"
+      index: 1
+    - name: "pippo"
+      networkName: "linux-bridge-net-ipam"
+      index: 1

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fgt-rule-interface
+  labels:
+    app.kubernetes.io/component: fgt-operator-rule
+data:
+  rule.json: |
+    {
+      "rules": {
+        "interface": {
+          "mappings": {
+            "FGT_RESOURCE_NAME": "$cr.name",
+            "FGT_PORT_NAME": "spec.extraParams.portName",
+            "FGT_PORT_ADDRESS": "spec.extraParams.portAddress",
+            "FGT_PORT_MASK": "spec.extraParams.portMask"
+          },
+          "validate": {
+            "FGT_PORT_NAME": { "required": true },
+            "FGT_PORT_ADDRESS": { "required": true, "type": "ip" },
+            "FGT_PORT_MASK": { "required": true, "type": "ip" }
+          }
+        }
+      }
+    }

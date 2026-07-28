@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fgt-rule-common
+  labels:
+    app.kubernetes.io/component: fgt-operator-rule
+data:
+  rule.json: |
+    {
+      "common": {
+        "mappings": {
+          "FGT_IP_OR_NAME": "fortiIP",
+          "FGT_API_TOKEN": "token",
+          "FGT_S3STATE_KEY": "tfStateKey",
+          "FGT_S3STATE_BUCKET": "s3Bucket",
+          "FGT_S3STATE_REGION": "s3Region",
+          "FGT_S3STATE_ENDPOINT": "s3Endpoint"
+        }
+      }
+    }

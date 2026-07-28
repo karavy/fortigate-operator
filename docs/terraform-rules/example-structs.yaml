@@ -1,0 +1,36 @@
+---
+# 10_system_global.yaml
+ spec:
+   operatorRule: "system_global"
+   extraParams:
+     hostname: ""
+     alias: ""
+     adminSport: 4443
+     timezone: "Europe/Rome"
+     dnsPrimary: ""
+     dnsSecondary: ""
+     ntpInterface: ""
+     emailServer: ""
+     emailPort: 465
+     fortiguardLocation: "usa"
+     logDiskQuota: 22547
+     accProfiles:
+       - name: ""
+         cliConfig: "enable"
+     storageDisks:
+       - name: "Virtual-Disk"
+         partition: ""
+         device: "/dev/sdb1"
+         size: 30063
+---
+# 51_firewall_policy.yaml
+ spec:
+   operatorRule: "fwrules"
+   extraItems:
+     - ruleName: "Rule-Kubernetes-1"
+       internetServices:
+         - name: "Amazon-AWS"
+     - ruleName: "Rule-Kubernetes-2"
+       internetServices:
+         - name: "AdRoll-DNS"
+         - name: "AdRoll-FTP"

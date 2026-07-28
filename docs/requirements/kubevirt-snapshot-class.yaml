@@ -1,0 +1,32 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: truenas-snapshot-class
+  annotations:
+    # Imposta questa classe come predefinita per tutti gli snapshot del cluster
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: nfs.csi.k8s.io
+deletionPolicy: Delete # Quando cancelli lo snapshot da K8s, cancella anche lo snapshot ZFS su TrueNAS
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: truenas-democratic-snapshot-class
+  annotations:
+    # Imposta questa classe come predefinita per tutti gli snapshot del cluster
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: org.democratic-csi.nfs
+deletionPolicy: Delete # Quando cancelli lo snapshot da K8s, cancella anche lo snapshot ZFS su TrueNAS
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: longhorn-snapshot-vsc
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: driver.longhorn.io
+deletionPolicy: Delete
+parameters:
+  # ⚠️ Questo parametro dice a Longhorn di fare uno snapshot LOCALE 
+  # senza cercare il Backup Target (S3/NFS)
+  type: snap

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+  labels:
+    app: containerized-data-importer
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/managed-by: cdi-operator
+    cdi.kubevirt.io: cdi-uploadproxy
+    operator.cdi.kubevirt.io/createVersion: v1.65.0
+    operator.cdi.kubevirt.io/updateVersion: v1.65.0
+  name: cdi-uploadproxy-ext
+  namespace: cdi
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    cdi.kubevirt.io: cdi-uploadproxy
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

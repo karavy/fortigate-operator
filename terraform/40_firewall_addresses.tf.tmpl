@@ -1,0 +1,20 @@
+<FGT_FOR_STR><ADDRESSES>
+resource "fortios_firewall_address" "<ADDRESSES_NAME>" {
+  name   = "<ADDRESSES_NAME>"
+  type   = "ipmask"
+  subnet = "<ADDRESSES_SUBNET>"
+  #comment = "<ADDRESSES_COMMENT>"
+}
+<FGT_FOR_END>
+
+<FGT_FOR_STR><ADDRESSGROUPS>
+resource "fortios_firewall_addrgrp" "<ADDRESSGROUPS_NAME>" {
+  name = "<ADDRESSGROUPS_NAME>"
+
+  <FGT_FOR_STR><MEMBERS>
+  member {
+    name = "<ADDRESSGROUPS_MEMBERS_VALUE>"
+  }
+  <FGT_FOR_END>
+}
+<FGT_FOR_END>

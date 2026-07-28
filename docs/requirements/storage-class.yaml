@@ -1,0 +1,17 @@
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  creationTimestamp: "2026-06-19T20:36:04Z"
+  name: nfs-csi-truenas-local
+mountOptions:
+- nfsvers=4.1
+parameters:
+  server: 172.19.200.5
+  share: /mnt/prova/nfs
+provisioner: nfs.csi.k8s.io
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+---

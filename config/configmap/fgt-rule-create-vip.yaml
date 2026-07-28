@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fgt-rule-create-vip
+  labels:
+    app.kubernetes.io/component: fgt-operator-rule
+data:
+  rule.json: |
+    {
+      "rules": {
+        "create_vip": {
+          "mappings": {
+            "FGT_RESOURCE_NAME": "$cr.name",
+            "FGT_VIP_NAME": "spec.extraParams.vipName",
+            "FGT_VIP_EXTIP": "spec.extraParams.vipExternalIP",
+            "FGT_VIP_EXTIF": "spec.extraParams.vipExternalInterface",
+            "FGT_VIP_RANGE": "spec.extraParams.vipInternalRange"
+          },
+          "validate": {
+            "FGT_VIP_NAME": { "required": true },
+            "FGT_VIP_EXTIP": { "required": true, "type": "ip" },
+            "FGT_VIP_EXTIF": { "required": true },
+            "FGT_VIP_RANGE": { "required": true }
+          }
+        }
+      }
+    }

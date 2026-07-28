@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fgt-rule-system-global
+  namespace: default
+  labels:
+    app.kubernetes.io/component: fgt-operator-rule
+data:
+  rule.json: |
+    {
+      "rules": {
+        "system_global": {
+          "mappings": {
+            "FGT_RESOURCE_NAME": "$cr.name",
+            "FGT_HOSTNAME": "spec.extraParams.hostname",
+            "FGT_ALIAS": "spec.extraParams.alias",
+            "FGT_ADMINSPORT": "spec.extraParams.adminSport",
+            "FGT_TIMEZONE": "spec.extraParams.timezone",
+            "FGT_DNSPRIMARY": "spec.extraParams.dnsPrimary",
+            "FGT_DNSSECONDARY": "spec.extraParams.dnsSecondary",
+            "FGT_NTPINTERFACE": "spec.extraParams.ntpInterface",
+            "FGT_EMAILSERVER": "spec.extraParams.emailServer",
+            "FGT_EMAILPORT": "spec.extraParams.emailPort",
+            "FGT_FORTIGUARDLOCATION": "spec.extraParams.fortiguardLocation",
+            "FGT_LOGDISKQUOTA": "spec.extraParams.logDiskQuota"
+          },
+          "validate": {
+            "FGT_HOSTNAME": { "required": true },
+            "FGT_DNSPRIMARY": { "required": true, "type": "ip" },
+            "FGT_DNSSECONDARY": { "required": true, "type": "ip" },
+            "FGT_ADMINSPORT": { "required": true, "type": "int" },
+            "FGT_EMAILPORT": { "required": true, "type": "int" },
+            "FGT_LOGDISKQUOTA": { "required": true, "type": "int" }
+          },
+          "validateLists": {
+            "spec.extraParams.accProfiles": {
+              "name": { "required": true },
+              "cliConfig": { "required": true, "type": "enum", "enum": ["enable", "disable"] }
+            },
+            "spec.extraParams.storageDisks": {
+              "name": { "required": true },
+              "partition": { "required": true },
+              "device": { "required": true, "pattern": "^/dev/.+" },
+              "size": { "required": true, "type": "int" }
+            }
+          }
+        }
+      }
+    }

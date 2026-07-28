@@ -1,0 +1,18 @@
+#config
+config system api-user
+  edit "admin-api-kubevirt"
+    set accprofile "super_admin"
+    set vdom "root"
+    config api-key
+      edit 1
+        set key ENC <VALORE_BASE64_(IGNORATO DURANTE INSTALLAZIONE)>
+      next
+    end
+  next
+end
+config system admin 
+  edit admin
+    set password "<ADMIN_PASSWORD>"
+    set ssh-public-key1 "<POD_SSH_PUBLIC_KEY>"
+  next
+end

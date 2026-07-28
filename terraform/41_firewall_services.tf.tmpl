@@ -1,0 +1,18 @@
+<FGT_FOR_STR><SERVICESCUSTOM>
+resource "fortios_firewall_service_custom" "<SERVICESCUSTOM_NAME>" {
+  name          = "<SERVICESCUSTOM_NAME>"
+  tcp_portrange = "<SERVICESCUSTOM_TCPPORTRANGE>"
+}
+<FGT_FOR_END>
+
+<FGT_FOR_STR><SERVICEGROUPS>
+resource "fortios_firewall_service_group" "<SERVICEGROUPS_NAME>" {
+  name = "<SERVICEGROUPS_NAME>"
+
+  <FGT_FOR_STR><MEMBERS>
+  member {
+    name = "<SERVICEGROUPS_MEMBERS_VALUE>"
+  }
+  <FGT_FOR_END>
+}
+<FGT_FOR_END>

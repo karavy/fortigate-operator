@@ -1,0 +1,3 @@
+resources:
+- manager.yaml
+- pvc-fortigate-firmwares.yaml

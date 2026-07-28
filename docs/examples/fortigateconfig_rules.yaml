@@ -1,0 +1,19 @@
+apiVersion: k8s.dinova.one/v1
+kind: FortigateConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: k8s-operator-fortigate
+    app.kubernetes.io/managed-by: kustomize
+  name: fortigateconfig-rules-sample
+spec:
+  fortigateName: "fortigatefirewall-trial"
+  terraformTemplateS3Key: "51_firewall_policy.tf.tmpl"
+  operatorRule: "fwrules"
+  extraItems:
+    - ruleName: "Rule-Kubernetes-2"
+      internetServices:
+        - name: "Amazon-AWS"
+    - ruleName: "Rule-Kubernetes-3"
+      internetServices:
+        - name: "AdRoll-DNS"
+        - name: "AdRoll-FTP"

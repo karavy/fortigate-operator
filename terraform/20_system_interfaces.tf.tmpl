@@ -1,0 +1,54 @@
+resource "fortios_system_interface" "fortilink" {
+  name              = "fortilink"
+  vdom              = "root"
+  fortilink         = "enable"
+  ip                = "10.255.1.1 255.255.255.0"
+  allowaccess       = "ping fabric"
+  type              = "aggregate"
+  lldp_reception    = "enable"
+  lldp_transmission = "enable"
+}
+
+resource "fortios_system_interface" "default_mesh" {
+  name = "default-mesh"
+  vdom = "root"
+  type = "vap-switch"
+  role = "lan"
+}
+
+<FGT_FOR_STR><INTERFACES>
+resource "fortios_system_interface" "<INTERFACES_NAME>" {
+  name        = "<INTERFACES_NAME>"
+  vdom        = "root"
+  ip          = "<INTERFACES_IP>"
+  allowaccess = "<INTERFACES_ALLOWACCESS>"
+  type        = "physical"
+  alias       = "<INTERFACES_ALIAS>"
+}
+<FGT_FOR_END>
+
+<FGT_FOR_STR><ZONES>
+resource "fortios_system_zone" "<ZONES_NAME>" {
+  name      = "<ZONES_NAME>"
+  interface = "<ZONES_INTERFACE>"
+}
+<FGT_FOR_END>
+
+<FGT_FOR_STR><DHCPSERVERS>
+resource "fortios_systemdhcp_server" "dhcp_<DHCPSERVERS_ID>" {
+  dns_service     = "default"
+  ntp_service     = "local"
+  default_gateway = "<DHCPSERVERS_DEFAULTGATEWAY>"
+  netmask         = "<DHCPSERVERS_NETMASK>"
+  interface       = "<DHCPSERVERS_INTERFACE>"
+  vci_match       = "enable"
+  vci_string      = "FortiSwitch  FortiExtender"
+
+  <FGT_FOR_STR><IPRANGES>
+  ip_range {
+    start_ip = "<DHCPSERVERS_IPRANGES_STARTIP>"
+    end_ip   = "<DHCPSERVERS_IPRANGES_ENDIP>"
+  }
+  <FGT_FOR_END>
+}
+<FGT_FOR_END>

@@ -1,0 +1,174 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.1
+  name: fortigateconfigs.k8s.dinova.one
+spec:
+  group: k8s.dinova.one
+  names:
+    kind: FortigateConfig
+    listKind: FortigateConfigList
+    plural: fortigateconfigs
+    singular: fortigateconfig
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: FortigateConfig is the Schema for the fortigateconfigs API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of FortigateConfig
+            properties:
+              extraItems:
+                description: "ExtraItems contiene i dati delle OperatorRule \"a lista\"
+                  (es.\nfwrules): una LISTA di oggetti JSON liberi, un file Terraform
+                  per\nelemento (vedi smart_nested_process.go / IndexedResourceFile).
+                  Ogni\nelemento può avere struttura annidata arbitraria (es.\ninternetServices
+                  dentro ogni regola).\n\nCampo separato da ExtraParams apposta: un
+                  *runtime.RawExtension\n(singolare) accetta solo oggetti, mai array,
+                  a livello di schema\nCRD - da qui la necessità di un campo tipizzato
+                  come LISTA a\nlivello Go per i dati a forma di lista.\n\nEsempio
+                  (fwrules):\n\n\tspec:\n\t  operatorRule: fwrules\n\t  extraItems:\n\t
+                  \   - ruleName: \"Rule-Kubernetes-2\"\n\t      internetServices:\n\t
+                  \       - name: \"Amazon-AWS\"\n\t    - ruleName: \"Rule-Kubernetes-3\"\n\t
+                  \     internetServices:\n\t        - name: \"AdRoll-DNS\"\n\t        -
+                  name: \"AdRoll-FTP\""
+                items:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                type: array
+              extraParams:
+                description: "ExtraParams contiene i parametri delle OperatorRule
+                  \"a risorsa\nsingola\" (es. create_vip, interface) in formato JSON
+                  libero - un\nOGGETTO, con qualunque struttura tu voglia dentro.
+                  La ConfigMap\ndelle regole (vedi internal/controller/rule_configdriven.go)
+                  legge\ni singoli campi tramite \"mappings\".\n\nIMPORTANTE: questo
+                  campo deve SEMPRE essere un oggetto JSON\n(`{...}`), mai una lista
+                  (`[...]`) - lo schema generato da\ncontroller-gen per runtime.RawExtension
+                  è sempre \"type: object\";\nuna CR con una lista qui sotto viene
+                  respinta dall'API server con\n\"must be of type object\". Per dati
+                  a forma di LISTA usa ExtraItems\nsotto, non questo campo.\n\nNon
+                  è validato oltre alla forma \"oggetto\" - la validazione dei\nsingoli
+                  campi (obbligatori, formato CIDR/IP/enum/regex...) avviene\na runtime
+                  nel controller, secondo la sezione \"validate\" della\nregola corrispondente
+                  nella ConfigMap.\n\nEsempio (create_vip):\n\n\tspec:\n\t  operatorRule:
+                  create_vip\n\t  extraParams:\n\t    vipName: vip_kubeApiServer\n\t
+                  \   vipExternalIP: \"178.239.21.17\"\n\t    vipExternalInterface:
+                  port1\n\t    vipInternalRange: \"172.19.249.254\""
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              fortigateName:
+                description: foo is an example field of FortigateConfig. Edit fortigateconfig_types.go
+                  to remove/update
+                type: string
+              operatorRule:
+                type: string
+              terraformTemplateS3Key:
+                type: string
+            required:
+            - fortigateName
+            - operatorRule
+            - terraformTemplateS3Key
+            type: object
+          status:
+            description: status defines the observed state of FortigateConfig
+            properties:
+              conditions:
+                description: |-
+                  conditions represent the current state of the FortigateConfig resource.
+                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
+
+                  Standard condition types include:
+                  - "Available": the resource is fully functional
+                  - "Progressing": the resource is being created or updated
+                  - "Degraded": the resource failed to reach or maintain its desired state
+
+                  The status of each condition is one of True, False, or Unknown.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              fortigateRuleUUID:
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,17 @@
+# Esempio di ConfigMap per la configurazione GENERALE dell'operator
+# (distinta dalla ConfigMap delle regole, fgt-operator-rules). Genera con:
+#
+#   kubectl create configmap fgt-operator-config \
+#     --from-file=operator-config.json=operator-config.example.json \
+#     --dry-run=client -o yaml > operator-configmap.example.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fgt-operator-config
+data:
+  operator-config.json: |
+    {
+      "commonTemplateSuffix": "00_common.tf.tmpl",
+      "terraformStateFileName": "firewall.tfstate",
+      "s3Region": "us-east-1"
+    }

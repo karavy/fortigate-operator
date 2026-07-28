@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cni-plugins-installer
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: cni-plugins-installer
+  template:
+    metadata:
+      labels:
+        name: cni-plugins-installer
+    spec:
+      hostNetwork: true
+      initContainers:
+      - name: install-cni
+        image: alpine:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            cd /tmp
+            wget https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz
+            tar -zxvf cni-plugins-linux-amd64-v1.4.0.tgz -C /host/opt/cni/bin/
+            echo "CNI plugins copied successfully"
+        volumeMounts:
+        - name: cni-bin
+          mountPath: /host/opt/cni/bin
+      containers:
+      - name: pause
+        image: registry.k8s.io/pause:3.9
+      volumes:
+      - name: cni-bin
+        hostPath:
+          path: /opt/cni/bin

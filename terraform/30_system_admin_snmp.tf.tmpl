@@ -1,0 +1,52 @@
+variable "admin_password" {
+  description = "Password shared by every fortios_system_admin resource generated below"
+  type        = string
+  sensitive   = true
+}
+
+<FGT_FOR_STR><ADMINS>
+resource "fortios_system_admin" "<ADMINS_NAME>" {
+  name       = "<ADMINS_NAME>"
+  vdom       = "root"
+  accprofile = "<ADMINS_ACCPROFILE>"
+  password   = var.admin_password
+
+  trusthost1 = "<ADMINS_TRUSTHOST1>"
+}
+<FGT_FOR_END>
+
+<FGT_FOR_STR><APIUSERS>
+resource "fortios_system_apiuser" "<APIUSERS_NAME>" {
+  name       = "<APIUSERS_NAME>"
+  comments   = "<APIUSERS_COMMENTS>"
+  accprofile = "<APIUSERS_ACCPROFILE>"
+
+  <FGT_FOR_STR><TRUSTHOSTS>
+  trusthost {
+    ipv4_trusthost = "<APIUSERS_TRUSTHOSTS_IPV4TRUSTHOST>"
+  }
+  <FGT_FOR_END>
+}
+<FGT_FOR_END>
+
+resource "fortios_systemsnmp_sysinfo" "snmp_sysinfo" {
+  status = "<SNMPSTATUS>"
+}
+
+<FGT_FOR_STR><SNMPCOMMUNITIES>
+resource "fortios_systemsnmp_community" "<SNMPCOMMUNITIES_NAME>" {
+  fosid = <SNMPCOMMUNITIES_ID>
+  name  = "<SNMPCOMMUNITIES_NAME>"
+
+  query_v1_status = "disable"
+  trap_v1_status  = "disable"
+  trap_v2c_status = "disable"
+
+  <FGT_FOR_STR><HOSTS>
+  hosts {
+    ip        = "<SNMPCOMMUNITIES_HOSTS_IP>"
+    host_type = "query"
+  }
+  <FGT_FOR_END>
+}
+<FGT_FOR_END>

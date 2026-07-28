@@ -1,0 +1,67 @@
+# Esempio di ConfigMap che contiene il file delle regole. Il contenuto di
+# "rules.json" qui sotto è lo stesso file di rules.example.json in questa
+# cartella - puoi generare questo manifest con:
+#
+#   kubectl create configmap fgt-operator-rules \
+#     --from-file=rules.json=rules.example.json \
+#     --dry-run=client -o yaml > configmap.example.yaml
+#
+# così non rischi di disallineare a mano il contenuto.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fgt-operator-rules
+data:
+  rules.json: |
+    {
+      "rules": {
+        "interface": {
+          "mappings": {
+            "FGT_RESOURCE_NAME": "$cr.name",
+            "FGT_PORT_NAME": "spec.extraItems.portName",
+            "FGT_PORT_ADDRESS": "spec.extraItems.portAddress",
+            "FGT_PORT_MASK": "spec.extraItems.portMask"
+          },
+          "validate": {
+            "FGT_PORT_NAME": { "required": true },
+            "FGT_PORT_ADDRESS": { "required": true, "type": "ip" },
+            "FGT_PORT_MASK": { "required": true, "type": "ip" }
+          }
+        },
+        "common": {
+          "mappings": {
+            "FGT_IP_OR_NAME": "fortiIP",
+            "FGT_API_TOKEN": "token",
+            "FGT_S3STATE_KEY": "tfStateKey",
+            "FGT_S3STATE_BUCKET": "s3Bucket",
+            "FGT_S3STATE_REGION": "s3Region",
+            "FGT_S3STATE_ENDPOINT": "s3Endpoint"
+          }
+        },
+        "create_vip": {
+          "mappings": {
+            "FGT_RESOURCE_NAME": "$cr.name",
+            "FGT_VIP_NAME": "spec.extraParams.vipName",
+            "FGT_VIP_EXTIP": "spec.extraParams.vipExternalIP",
+            "FGT_VIP_EXTIF": "spec.extraParams.vipExternalInterface",
+            "FGT_VIP_RANGE": "spec.extraParams.vipInternalRange"
+          },
+          "validate": {
+            "FGT_VIP_NAME": { "required": true },
+            "FGT_VIP_EXTIP": { "required": true, "type": "ip" },
+            "FGT_VIP_EXTIF": { "required": true },
+            "FGT_VIP_RANGE": { "required": true }
+          }
+        },
+        "fwrules": {
+          "listField": "spec.extraItems",
+          "itemMappings": {
+            "FGT_POLICY_NAME": "ruleName",
+            "FGT_RESOURCE_NAME": "ruleName"
+          },
+          "validate": {
+            "FGT_POLICY_NAME": { "required": true, "pattern": "^[A-Za-z0-9_-]+$" }
+          }
+        }
+      }
+    }
