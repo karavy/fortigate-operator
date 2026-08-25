@@ -53,7 +53,7 @@ func DoSSHOperations(ctx context.Context, r *FortigateFirewallReconciler, req ct
 
 	client, err := ssh.Dial("tcp", fortiIP, config)
 	if err != nil {
-		fmt.Printf("Connessione fallita: %v", err)
+		fmt.Printf("Connessione fallita a %s: %v\n", fortiIP, err)
 		return nil, err
 	}
 	defer client.Close()

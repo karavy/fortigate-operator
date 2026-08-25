@@ -4,14 +4,24 @@ Installa kind e crea un cluster
 
 # Configurazione nodo kind
 
+# Creazione immagine
+
+# Rete Multus 
 ### Sul nodo kind
 docker exec -it kind-control-plane bash
 ip link add br-ext type bridge
 ip link set br-ext up
 ip addr add 192.168.99.254/24 dev br-ext
 
+sysctl -w net.ipv4.ip_forward=1
+iptables -I FORWARD -i br-ext -j ACCEPT
+iptables -I FORWARD -o br-ext -j ACCEPT
+
 ### Sul pc che ospita Docker
-sudo ip route add 192.168.99.0/24 via 172.19.0.2 (rete docker di kind)
+sudo ip route add 192.168.99.0/24 via <ip container docker su cui gira kind>
+
+# Installazione cert-manager
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.21.1/cert-manager.yaml
 
 # Installazione Minio
 
@@ -20,10 +30,16 @@ docker run -d --network kind -p 9000:9000 -p 9001:9001 quay.io/minio/minio serve
 mc alias set mio-minio http://localhost:9000 minioadmin minioadmin
 mc admin user svcacct add mio-minio minioadmin
 
+# Installazione kubevirt
+export RELEASE=$(curl https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${RELEASE}/kubevirt-operator.yaml
+kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${RELEASE}/kubevirt-cr.yaml
+kubectl -n kubevirt wait kv kubevirt --for condition=Available
+
 # Networking
 Se utilizzo minio in un docker, avviare nella rete di kind (bridge)
 
-Se creo una vm per i pvc (truenas) configurare la rete come bridge e inserire nella rte kind
+Se creo una vm per i pvc (truenas) configurare la rete come bridge e inserire nella rete kind
 
 # Attivazione account trial per Fortigate
 La registrazione della licenza richiede un account Fortigate per la trial. In questo modo sarà possibile attivare la licenza sul firewall di test
@@ -31,6 +47,7 @@ La registrazione della licenza richiede un account Fortigate per la trial. In qu
 # Installazione e configurazione del servizio Load Balancer
 
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/manifests/metallb-native.yaml
+sleep 10
 kubectl apply -f docs/requirements/metallb.yaml
 
 # Creazione disco di boot cloud-init
@@ -53,15 +70,19 @@ wget https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-$
 sudo mv virtctl-${VERSION}-linux-amd64 /bin/virtctl
 chmod +x /bin/virtctl
 
-# Upload dell'immagine Fortigate e del disco cloud init
-
-/bin/virtctl image-upload pvc fortios-v766m-build3652-fgt --size 5Gi --uploadproxy-url https://172.19.37.50 --insecure --image-path /tmp/fortios.qcow2
-
-/bin/virtctl image-upload pvc fortios-v766m-build3652-cloud-init --size 1Gi --uploadproxy-url https://172.19.37.50 --insecure --image-path /tmp/fgt-bootstrap.iso 
-
 # Installazione CSI
 
 curl -skSL https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/v4.13.2/deploy/install-driver.sh | bash -s v4.13.2 --
+
+# Upload dell'immagine Fortigate e del disco cloud init
+
+/bin/virtctl image-upload pvc fortios-v766m-build3652-fgt --uploadproxy-url https://<IP_SERVIZIO_cdi-uploadproxy-ext_cdi> --size 5Gi --insecure --image-path /tmp/fortios.qcow2
+
+/bin/virtctl image-upload pvc fortios-v766m-build3652-cloud-init  --size 1Gi  --insecure --image-path /tmp/fgt-bootstrap.iso --uploadproxy-url https://<IP_SERVIZIO_cdi-uploadproxy-ext_cdi>
+
+# Upload dell'immagine VyOS e del disco cloud init
+
+/bin/virtctl image-upload pvc vyos-2026.03-golden --uploadproxy-url https://<IP_SERVIZIO_cdi-uploadproxy-ext_cdi> --size 10Gi --insecure --image-path /tmp/vyos-2026.03-golden.qcow2
 
 # Installazione Multus
 

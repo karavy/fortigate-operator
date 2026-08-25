@@ -16,46 +16,76 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func CreateNewFirewallPVC(firewallName string, fortigateVersion string, namespace string, storageClass string, ctx context.Context, r *FortigateFirewallReconciler) error {
-	// verifica che la storage class esista
-	exists, err := storageClassExists(ctx, r, storageClass)
-	if err != nil {
-		fmt.Printf("Errore durante la verifica della StorageClass '%s': %v\n", storageClass, err)
-		return err
-	}
-	if !exists {
-		fmt.Printf("La StorageClass '%s' non esiste. Assicurati di averla creata prima di procedere.\n", storageClass)
-		return fmt.Errorf("storage class '%s' non trovata", storageClass)
-	}
-
-	clonePVC("fortios-"+fortigateVersion+"-fgt", firewallName+"-"+fortigateVersion+"-fgt", namespace, storageClass)
-	clonePVC("fortios-"+fortigateVersion+"-cloud-init", firewallName+"-"+fortigateVersion+"-cloud-init", namespace, storageClass)
-
-	CheckFirewallPVC(firewallName+"-"+fortigateVersion+"-fgt", namespace)
-	CheckFirewallPVC(firewallName+"-"+fortigateVersion+"-cloud-init", namespace)
-
-	return nil
-}
-
-func storageClassExists(ctx context.Context, r *FortigateFirewallReconciler, scName string) (bool, error) {
-	storageClass := &storagev1.StorageClass{}
-
-	// Usiamo il client dell'operator per fare la Get.
-	// Siccome le StorageClass sono cluster-scoped, lasciamo il Namespace vuoto.
-	err := r.Get(ctx, types.NamespacedName{Name: scName}, storageClass)
-
+func createPVC(firewallType string, firewallName string, version string, namespace string, storageClassName string, err error, hasCloudInit bool) error {
+	fmt.Printf("Verifica della StorageClass '%s'...\n", storageClassName)
+	
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// La StorageClass NON esiste.
 			// Qui puoi gestire la logica (es. bloccare il reconcile o crearne una di fallback)
-			return false, nil
+			return fmt.Errorf("storage class '%s' non trovata", storageClassName)
 		}
 		// Errore generico di comunicazione
-		return false, err
+		return err
 	}
 
-	// Se siamo qui, la StorageClass esiste e l'oggetto `storageClass` contiene i suoi dati
-	return true, nil
+	goldenImageFirewallName := ""
+	goldenImageCloudInitName := ""
+
+	switch firewallType {
+	case "fortigate":
+		// Clona il PVC per FortiGate
+		goldenImageCloudInitName = firewallType+"-"+version+"-cloud-init"
+		goldenImageFirewallName = firewallType+"-"+version+"-fgt"
+	case "vyos":
+		// Clona il PVC per VyOS
+		goldenImageFirewallName = firewallType+"-"+version+"-golden"
+		goldenImageCloudInitName = firewallType+"-"+version+"-cloud-init"
+	default:
+		return fmt.Errorf("tipo di firewall non supportato: %s", firewallType)
+	}
+	
+	clonePVC(goldenImageFirewallName, firewallName+"-"+version, namespace, storageClassName)
+	if hasCloudInit {
+		clonePVC(goldenImageCloudInitName, firewallName+"-"+version+"-cloud-init", namespace, storageClassName)
+	}
+
+	CheckFirewallPVC(firewallName+"-"+version, namespace)
+	if hasCloudInit {
+		CheckFirewallPVC(firewallName+"-"+version+"-cloud-init", namespace)
+	}
+
+	return nil
+}
+
+func CreateNewFirewallPVC(firewallName string, version string, namespace string, storageClassName string, ctx context.Context, r *FirewallReconciler, firewallType string, hasCloudInit bool) error {
+	// verifica che la storage class esista
+	storageClass := &storagev1.StorageClass{}
+
+	// Usiamo il client dell'operator per fare la Get.
+	// Siccome le StorageClass sono cluster-scoped, lasciamo il Namespace vuoto.
+	err := r.Get(ctx, types.NamespacedName{Name: storageClassName}, storageClass)
+
+	if err := createPVC(firewallType, firewallName, version, namespace, storageClassName, err, hasCloudInit); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateNewFortigateFirewallPVC(firewallName string, version string, namespace string, storageClassName string, ctx context.Context, r *FortigateFirewallReconciler, firewallType string) error {
+	// verifica che la storage class esista
+	storageClass := &storagev1.StorageClass{}
+
+	// Usiamo il client dell'operator per fare la Get.
+	// Siccome le StorageClass sono cluster-scoped, lasciamo il Namespace vuoto.
+	err := r.Get(ctx, types.NamespacedName{Name: storageClassName}, storageClass)
+
+	if err := createPVC(firewallType, firewallName, version, namespace, storageClassName, err, true); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func CheckFirewallPVC(name string, namespace string) error {

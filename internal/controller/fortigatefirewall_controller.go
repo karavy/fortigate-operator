@@ -159,7 +159,7 @@ func (r *FortigateFirewallReconciler) deleteExternalResources(resource *k8sdinov
 		return err
 	}
 
-	if err := DeleteFirewallSvc(ctx, r, resource.Name, resource.Spec.FortigateVersion, resource.Namespace); err != nil {
+	if err := DeleteFortigateFirewallSvc(ctx, r, resource.Name, resource.Spec.FortigateVersion, resource.Namespace); err != nil {
 		return err
 	}
 
@@ -182,7 +182,7 @@ func (r *FortigateFirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func doReconcileFirewall(ctx context.Context, r *FortigateFirewallReconciler, req ctrl.Request, instance *k8sdinovaonev1.FortigateFirewall) (k8sdinovaonev1.FortigateFirewallStatus, error) {
 	statusInfo := k8sdinovaonev1.FortigateFirewallStatus{}
 
-	if err := CreateNewFirewallPVC(instance.Name, instance.Spec.FortigateVersion, instance.Namespace, instance.Spec.PVCStorageClass, ctx, r); err != nil {
+	if err := CreateNewFortigateFirewallPVC(instance.Name, instance.Spec.FortigateVersion, instance.Namespace, instance.Spec.PVCStorageClass, ctx, r, "fortigate"); err != nil {
 		fmt.Printf("Errore durante la creazione del PVC: %v\n", err)
 		return statusInfo, err
 	}

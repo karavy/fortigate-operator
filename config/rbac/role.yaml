@@ -29,6 +29,7 @@ rules:
 - apiGroups:
   - k8s.dinova.one
   resources:
+  - firewalls
   - fortigatebackups
   - fortigateconfigs
   - fortigatefirewalls
@@ -45,6 +46,7 @@ rules:
 - apiGroups:
   - k8s.dinova.one
   resources:
+  - firewalls/finalizers
   - fortigatebackups/finalizers
   - fortigateconfigs/finalizers
   - fortigatefirewalls/finalizers
@@ -55,6 +57,7 @@ rules:
 - apiGroups:
   - k8s.dinova.one
   resources:
+  - firewalls/status
   - fortigatebackups/status
   - fortigateconfigs/status
   - fortigatefirewalls/status
