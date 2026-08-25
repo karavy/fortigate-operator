@@ -51,4 +51,12 @@ resources:
   webhooks:
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: k8s.dinova.one
+  kind: Firewall
+  path: github.com/karavy/k8s-operator-fortigate/api/v1
+  version: v1
 version: "3"

@@ -30,7 +30,7 @@ func (r *FortigateFirewallReconciler) createFortigateFirewall(ctx context.Contex
 
 	if err == nil {
 		fmt.Println("La VMI esiste già, aggiorno")
-		interfaces, networks, err := createManifestNIC(spec.Ports)
+		interfaces, networks, err := createFortigateManifestNIC(spec.Ports)
 		if err != nil {
 			fmt.Printf("Errore creazione interfacce: %v\n", err)
 			return err
@@ -48,7 +48,7 @@ func (r *FortigateFirewallReconciler) createFortigateFirewall(ctx context.Contex
 
 			fmt.Println("VMI aggiornata con successo, riavvio della VM")
 
-			if err := r.restartVM(ctx, firewallName, namespace); err != nil {
+			if err := r.restartFortigateVM(ctx, firewallName, namespace); err != nil {
 				fmt.Printf("Errore durante il riavvio della VM: %v\n", err)
 				return err
 			}
@@ -62,7 +62,7 @@ func (r *FortigateFirewallReconciler) createFortigateFirewall(ctx context.Contex
 	}
 
 	// la vm non esiste, la creo
-	vmi := createManifest(firewallName, fortigateVersion, namespace, spec)
+	vmi := createFortigateManifest(firewallName, fortigateVersion, namespace, spec)
 
 	if err := r.Create(ctx, vmi); err != nil {
 		fmt.Printf("Errore durante la creazione della VMI: %v\n", err)
@@ -144,7 +144,7 @@ func createFortigateFirewallService(firewallName string, fortigateVersion string
 	}
 }
 
-func DeleteFirewallSvc(ctx context.Context, r *FortigateFirewallReconciler, firewallName string, fortigateVersion string, namespace string) error {
+func DeleteFortigateFirewallSvc(ctx context.Context, r *FortigateFirewallReconciler, firewallName string, fortigateVersion string, namespace string) error {
 	svcName := fmt.Sprintf("%s-%s-ssh-gui", firewallName, fortigateVersion)
 	svc := &v1.Service{}
 	err := r.Get(ctx, types.NamespacedName{Name: svcName, Namespace: namespace}, svc)
@@ -206,7 +206,7 @@ func DeleteFortigateFirewall(ctx context.Context, r *FortigateFirewallReconciler
 	return err
 }
 
-func createManifestNIC(ports []k8sdinovaonev1.FortigateInterface) ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {
+func createFortigateManifestNIC(ports []k8sdinovaonev1.FortigateInterface) ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {
 	var interfaces []kubevirtv1.Interface
 	var networks []kubevirtv1.Network
 
@@ -247,12 +247,12 @@ func createManifestNIC(ports []k8sdinovaonev1.FortigateInterface) ([]kubevirtv1.
 	return interfaces, networks, nil
 }
 
-func createManifest(firewallName string, fortigateVersion string, namespace string, spec k8sdinovaonev1.FortigateFirewallSpec) *kubevirtv1.VirtualMachine {
+func createFortigateManifest(firewallName string, fortigateVersion string, namespace string, spec k8sdinovaonev1.FortigateFirewallSpec) *kubevirtv1.VirtualMachine {
 	// Definiamo un puntatore a zero per il termination grace period
 	var gracePeriod int64 = 0
 	runStrategy := kubevirtv1.RunStrategyAlways
 
-	interfaces, networks, err := createManifestNIC(spec.Ports)
+	interfaces, networks, err := createFortigateManifestNIC(spec.Ports)
 	if err != nil {
 		fmt.Printf("Errore creazione interfacce: %v", err)
 		return nil
@@ -347,7 +347,7 @@ func createManifest(firewallName string, fortigateVersion string, namespace stri
 
 	return (vm)
 }
-func (r *FortigateFirewallReconciler) restartVM(ctx context.Context, firewallName string, namespace string) error {
+func (r *FortigateFirewallReconciler) restartFortigateVM(ctx context.Context, firewallName string, namespace string) error {
 	existingVM := &kubevirtv1.VirtualMachine{}
 	err := r.Get(ctx, client.ObjectKey{Name: firewallName, Namespace: namespace}, existingVM)
 	if err != nil {

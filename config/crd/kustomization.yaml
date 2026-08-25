@@ -7,6 +7,7 @@ resources:
 - bases/k8s.dinova.one_fortigateupdates.yaml
 - bases/k8s.dinova.one_fortigateupdatepaths.yaml
 - bases/k8s.dinova.one_fortigatebackups.yaml
+- bases/k8s.dinova.one_firewalls.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
