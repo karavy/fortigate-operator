@@ -34,3 +34,5 @@ config/samples/*
 terraform/rules_examples/*
 
 docs/cloud-init/cdrom/openstack/latest/user_data
+
+api/v1/bin/*

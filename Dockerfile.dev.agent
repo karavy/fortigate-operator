@@ -1,0 +1,14 @@
+FROM ubuntu:24.04
+
+# Installa psmisc per avere il comando 'killall' necessario al riavvio del processo
+RUN apt-get update && apt-get install -y psmisc ca-certificates && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copiamo il binario compilato
+COPY ./bin/agent /agent
+
+RUN chmod +x /agent
+
+# Lanciamo l'applicazione
+CMD ["/bin/sh", "-c", "while true; do /agent; echo 'restarting...'; sleep 1; done"]

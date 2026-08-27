@@ -1,0 +1,111 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.1
+  name: nodebridges.k8s.dinova.one
+spec:
+  group: k8s.dinova.one
+  names:
+    kind: NodeBridge
+    listKind: NodeBridgeList
+    plural: nodebridges
+    singular: nodebridge
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: NodeBridge is the Schema for the nodebridges API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of NodeBridge
+            properties:
+              bridgeName:
+                description: BridgeName è il nome del bridge Linux da creare. Deve
+                  essere univoco per nodo.
+                type: string
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector limita i nodi su cui il bridge deve essere
+                  creato.
+                type: object
+              uplinkInterface:
+                description: |-
+                  UplinkInterface è l'interfaccia fisica del nodo da agganciare al bridge (es. eth1).
+                  Se non impostata, il bridge viene comunque creato ma senza alcuna interfaccia agganciata.
+                type: string
+              vlanAware:
+                default: true
+                description: 'VlanAware abilita vlan_filtering sul bridge Linux. Default:
+                  true.'
+                type: boolean
+              vlanId:
+                description: |-
+                  VlanID, se impostato, configura il bridge per operare in modalità VLAN-aware
+                  e riferisce il tag VLAN atteso dalle NetworkAttachmentDefinition collegate.
+                format: int32
+                maximum: 4094
+                minimum: 1
+                type: integer
+            type: object
+          status:
+            description: status defines the observed state of NodeBridge
+            properties:
+              nodeStatuses:
+                additionalProperties:
+                  description: NodeBridgeNodeStatus è lo stato riportato da un singolo
+                    agent per il proprio nodo.
+                  properties:
+                    displayName:
+                      type: string
+                    lastReconcileTime:
+                      description: LastReconcileTime è il timestamp dell'ultima riconciliazione
+                        riuscita o fallita.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message riporta l'ultimo errore, se presente.
+                      type: string
+                    ready:
+                      description: Ready indica se il bridge è stato creato correttamente
+                        su questo nodo.
+                      type: boolean
+                  required:
+                  - ready
+                  type: object
+                description: NodeStatuses mappa nome-nodo -> stato riportato dall'agent
+                  su quel nodo.
+                type: object
+              observedGeneration:
+                description: ObservedGeneration è la generation della Spec l'ultima
+                  volta osservata dal controller principale.
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

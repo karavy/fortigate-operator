@@ -24,4 +24,4 @@ spec:
       index: 1
     - name: "pippo"
       networkName: "linux-bridge-net-ipam"
-      index: 1
+      index: 2

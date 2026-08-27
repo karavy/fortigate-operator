@@ -39,7 +39,11 @@ spec:
           spec:
             description: spec defines the desired state of Firewall
             properties:
-              hasCloudInit:
+              cloudInitUserData:
+                description: se hasCloudInitDisk è true, allora cloudInitUserData
+                  è ignorato
+                type: string
+              hasCloudInitDisk:
                 type: boolean
               ports:
                 items:
@@ -50,6 +54,11 @@ spec:
                       type: string
                     networkName:
                       type: string
+                    uplinkInterface:
+                      type: string
+                    vlanID:
+                      format: int32
+                      type: integer
                   required:
                   - index
                   - name

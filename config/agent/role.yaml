@@ -1,0 +1,30 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: network-operator-agent
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - k8s.dinova.one
+  resources:
+  - nodebridges
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - k8s.dinova.one
+  resources:
+  - nodebridges/status
+  verbs:
+  - get
+  - patch
+  - update

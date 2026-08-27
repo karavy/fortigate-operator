@@ -8,6 +8,7 @@ rules:
   - ""
   resources:
   - configmaps
+  - nodes
   - secrets
   verbs:
   - get
@@ -27,14 +28,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - k8s.dinova.one
+  - k8s.cni.cncf.io
   resources:
-  - firewalls
-  - fortigatebackups
-  - fortigateconfigs
-  - fortigatefirewalls
-  - fortigateupdatepaths
-  - fortigateupdates
+  - network-attachment-definitions
   verbs:
   - create
   - delete
@@ -46,23 +42,46 @@ rules:
 - apiGroups:
   - k8s.dinova.one
   resources:
+  - firewallconfigs
+  - firewalls
+  - fortigatebackups
+  - fortigateconfigs
+  - fortigatefirewalls
+  - fortigateupdatepaths
+  - fortigateupdates
+  - nodebridges
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - k8s.dinova.one
+  resources:
+  - firewallconfigs/finalizers
   - firewalls/finalizers
   - fortigatebackups/finalizers
   - fortigateconfigs/finalizers
   - fortigatefirewalls/finalizers
   - fortigateupdatepaths/finalizers
   - fortigateupdates/finalizers
+  - nodebridges/finalizers
   verbs:
   - update
 - apiGroups:
   - k8s.dinova.one
   resources:
+  - firewallconfigs/status
   - firewalls/status
   - fortigatebackups/status
   - fortigateconfigs/status
   - fortigatefirewalls/status
   - fortigateupdatepaths/status
   - fortigateupdates/status
+  - nodebridges/status
   verbs:
   - get
   - patch

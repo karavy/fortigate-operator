@@ -1,5 +1,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
+# Image URL to use for building/pushing the agent DaemonSet image
+AGENT_IMG ?= registry.k8s.dinova.one/network-operator:agent-latest
 # YEAR defines the year value used for substituting the YEAR placeholder in the boilerplate header.
 YEAR ?= $(shell date +%Y)
 
@@ -46,6 +48,7 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	"$(CONTROLLER_GEN)" rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	"$(CONTROLLER_GEN)" rbac:roleName=network-operator-agent paths="./internal/agent/..." output:rbac:artifacts:config=config/agent
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -126,6 +129,14 @@ docker-build: ## Build docker image with the manager.
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}
+
+.PHONY: docker-build-agent
+docker-build-agent: ## Build docker image with the node agent.
+	$(CONTAINER_TOOL) build -t ${AGENT_IMG} -f Dockerfile.agent .
+
+.PHONY: docker-push-agent
+docker-push-agent: ## Push docker image with the node agent.
+	$(CONTAINER_TOOL) push ${AGENT_IMG}
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:

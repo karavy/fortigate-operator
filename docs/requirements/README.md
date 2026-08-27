@@ -17,6 +17,28 @@ sysctl -w net.ipv4.ip_forward=1
 iptables -I FORWARD -i br-ext -j ACCEPT
 iptables -I FORWARD -o br-ext -j ACCEPT
 
+### IP per VLAN sulle NAD (bridge creato dall'operator/NodeBridge)
+Il bridge (es. br-ext) viene creato VLAN-aware dall'operator. Per ogni VLAN referenziata dalle
+NetworkAttachmentDefinition (campo `vlanID` delle porte) va creata sul nodo una sub-interfaccia
+802.1q sul bridge, con il proprio indirizzo di gateway. Ripetere per ogni <VLAN_ID>/<IP> usati dalle NAD:
+
+bridge vlan add dev br-ext vid <VLAN_ID> self
+ip link add link br-ext name br-ext.<VLAN_ID> type vlan id <VLAN_ID>
+ip link set br-ext.<VLAN_ID> up
+ip addr add <IP>/<PREFIX> dev br-ext.<VLAN_ID>
+
+Esempio con due VLAN (10 e 20):
+
+bridge vlan add dev br-ext vid 10 self
+ip link add link br-ext name br-ext.10 type vlan id 10
+ip link set br-ext.10 up
+ip addr add 192.168.10.254/24 dev br-ext.10
+
+bridge vlan add dev br-ext vid 20 self
+ip link add link br-ext name br-ext.20 type vlan id 20
+ip link set br-ext.20 up
+ip addr add 192.168.20.254/24 dev br-ext.20
+
 ### Sul pc che ospita Docker
 sudo ip route add 192.168.99.0/24 via <ip container docker su cui gira kind>
 

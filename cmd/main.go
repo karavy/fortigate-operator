@@ -280,6 +280,21 @@ func main() {
 		setupLog.Error(err, "Failed to create controller", "controller", "firewall")
 		os.Exit(1)
 	}
+	if err := (&controller.FirewallConfigReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "Failed to create controller", "controller", "firewallconfig")
+		os.Exit(1)
+	}
+	if err := (&controller.NodeBridgeReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "Failed to create controller", "controller", "nodebridge")
+		os.Exit(1)
+	}
+	
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

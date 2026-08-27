@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -25,14 +26,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func (r *FirewallReconciler) createFirewall(ctx context.Context, instance *k8sdinovaonev1.Firewall) (k8sdinovaonev1.FirewallStatus, error) {
+func createFirewall(r *FirewallReconciler, ctx context.Context, instance *k8sdinovaonev1.Firewall, portsNADs []firewallPortNAD) (k8sdinovaonev1.FirewallStatus, error) {
 	statusInfo := k8sdinovaonev1.FirewallStatus{}
 
-	if err := CreateNewFirewallPVC(instance.Name, instance.Spec.Version, instance.Namespace, instance.Spec.PVCStorageClass, ctx, r, instance.Spec.Type, instance.Spec.HasCloudInit); err != nil {
+	if err := CreateNewFirewallPVC(ctx, r, instance); err != nil {
 		fmt.Printf("Errore durante la creazione del PVC: %v\n", err)
 		return statusInfo, err
 	}
-	if err := createVMFirewall(ctx, r, instance.Name, instance.Spec.Version, instance.Namespace, instance.Spec); err != nil {
+	if err := createVMFirewall(ctx, r, instance, portsNADs); err != nil {
 		fmt.Printf("Errore durante la creazione della VMI: %v\n", err)
 		return statusInfo, err
 	}
@@ -45,13 +46,17 @@ func (r *FirewallReconciler) createFirewall(ctx context.Context, instance *k8sdi
 	return statusInfo, nil
 }
 
-func createVMFirewall(ctx context.Context, r *FirewallReconciler, firewallName string, firewallVersion string, namespace string, spec k8sdinovaonev1.FirewallSpec) error {
+func createVMFirewall(ctx context.Context, r *FirewallReconciler, instance *k8sdinovaonev1.Firewall, portsNADs []firewallPortNAD) error {
+	firewallName :=  instance.Name
+	firewallVersion := instance.Spec.Version
+	namespace := instance.Namespace
+
 	existingVM := &kubevirtv1.VirtualMachine{}
 	err := r.Get(ctx, client.ObjectKey{Name: firewallName, Namespace: namespace}, existingVM)
 
 	if err == nil {
 		fmt.Println("La VMI esiste già, aggiorno")
-		interfaces, networks, err := createFirewallManifestNIC(spec.Ports)
+		interfaces, networks, err := createFirewallManifestNIC(instance.Spec.Ports, portsNADs)
 		if err != nil {
 			fmt.Printf("Errore creazione interfacce: %v\n", err)
 			return err
@@ -83,7 +88,7 @@ func createVMFirewall(ctx context.Context, r *FirewallReconciler, firewallName s
 	}
 
 	// la vm non esiste, la creo
-	vmi := createManifest(firewallName, firewallVersion, namespace, spec)
+	vmi := createManifest(firewallName, firewallVersion, namespace, instance.Spec, portsNADs)
 
 	if err := r.Create(ctx, vmi); err != nil {
 		fmt.Printf("Errore durante la creazione della VMI: %v\n", err)
@@ -230,7 +235,7 @@ func DeleteFirewall(ctx context.Context, r *FirewallReconciler, firewallName str
 	return err
 }
 
-func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface) ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {
+func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface, portsNADs []firewallPortNAD) ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {
 	var interfaces []kubevirtv1.Interface
 	var networks []kubevirtv1.Network
 
@@ -255,9 +260,9 @@ func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface) ([]kube
 		return nil, nil, fmt.Errorf("nessuna porta specificata per la creazione delle interfacce di rete")
 	}
 
-	for _, port := range ports {
+	for _, port := range portsNADs {
 		interfaces = append(interfaces, kubevirtv1.Interface{
-			Name:  port.Name,
+			Name:  port.portName,
 			Model: "virtio",
 			InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 				Bridge: &kubevirtv1.InterfaceBridge{},
@@ -265,10 +270,10 @@ func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface) ([]kube
 		})
 
 		networks = append(networks, kubevirtv1.Network{
-			Name: port.Name,
+			Name: port.portName,
 			NetworkSource: kubevirtv1.NetworkSource{
 				Multus: &kubevirtv1.MultusNetwork{
-					NetworkName: port.NetworkName,
+					NetworkName: port.bridgeName,
 				},
 			},
 		})
@@ -277,12 +282,12 @@ func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface) ([]kube
 	return interfaces, networks, nil
 }
 
-func createManifest(firewallName string, firewallVersion string, namespace string, spec k8sdinovaonev1.FirewallSpec) *kubevirtv1.VirtualMachine {
+func createManifest(firewallName string, firewallVersion string, namespace string, spec k8sdinovaonev1.FirewallSpec, portsNADs []firewallPortNAD) *kubevirtv1.VirtualMachine {
 	// Definiamo un puntatore a zero per il termination grace period
 	var gracePeriod int64 = 0
 	runStrategy := kubevirtv1.RunStrategyAlways
 
-	interfaces, networks, err := createFirewallManifestNIC(spec.Ports)
+	interfaces, networks, err := createFirewallManifestNIC(spec.Ports, portsNADs)
 	if err != nil {
 		fmt.Printf("Errore creazione interfacce: %v", err)
 		return nil
@@ -316,7 +321,27 @@ func createManifest(firewallName string, firewallVersion string, namespace strin
 		Interfaces: interfaces,
 	}
 
-	if spec.HasCloudInit {
+	if spec.CloudInitUserData != "" {
+		fmt.Println(spec.CloudInitUserData)
+
+		firewallVolumes = append(firewallVolumes, kubevirtv1.Volume{
+			Name: "cloudinitdisk",
+			VolumeSource: kubevirtv1.VolumeSource{
+				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
+					UserData: spec.CloudInitUserData,
+				},
+			},
+		})
+
+		firewallDevices.Disks = append(firewallDevices.Disks, kubevirtv1.Disk{
+			Name: "cloudinitdisk",
+			DiskDevice: kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus: "sata",
+				},
+			},
+		})
+	} else if spec.HasCloudInitDisk {
 		// Creazione dell'oggetto VirtualMachine
 		firewallVolumes = append(firewallVolumes, kubevirtv1.Volume{
 			Name: "cloudinitdisk",

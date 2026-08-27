@@ -14,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
 )
 
 func createPVC(firewallType string, firewallName string, version string, namespace string, storageClassName string, err error, hasCloudInit bool) error {
@@ -58,7 +60,14 @@ func createPVC(firewallType string, firewallName string, version string, namespa
 	return nil
 }
 
-func CreateNewFirewallPVC(firewallName string, version string, namespace string, storageClassName string, ctx context.Context, r *FirewallReconciler, firewallType string, hasCloudInit bool) error {
+func CreateNewFirewallPVC(ctx context.Context, r *FirewallReconciler, instance *k8sdinovaonev1.Firewall) error {
+	firewallName := instance.Name
+	version := instance.Spec.Version
+	namespace := instance.Namespace
+	storageClassName := instance.Spec.PVCStorageClass
+	firewallType := instance.Spec.Type
+	hasCloudInitDisk := instance.Spec.HasCloudInitDisk
+
 	// verifica che la storage class esista
 	storageClass := &storagev1.StorageClass{}
 
@@ -66,7 +75,7 @@ func CreateNewFirewallPVC(firewallName string, version string, namespace string,
 	// Siccome le StorageClass sono cluster-scoped, lasciamo il Namespace vuoto.
 	err := r.Get(ctx, types.NamespacedName{Name: storageClassName}, storageClass)
 
-	if err := createPVC(firewallType, firewallName, version, namespace, storageClassName, err, hasCloudInit); err != nil {
+	if err := createPVC(firewallType, firewallName, version, namespace, storageClassName, err, hasCloudInitDisk); err != nil {
 		return err
 	}
 

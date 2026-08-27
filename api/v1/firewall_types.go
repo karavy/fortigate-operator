@@ -32,23 +32,28 @@ type FirewallSpec struct {
 
 	// foo is an example field of Firewall. Edit firewall_types.go to remove/update
 	// +required
-	PVCStorageClass  string  `json:"pvcStorageClass,omitempty"`
+	PVCStorageClass  	string  `json:"pvcStorageClass,omitempty"`
 	// +required
-	Version string  `json:"version,omitempty"`
+	Version 			string  `json:"version,omitempty"`
 	// +required
-	Type string `json:"type,omitempty"`
+	Type 				string `json:"type,omitempty"`
 	// +required
-	Ports []FirewallInterface `json:"ports,omitempty"`
+	Ports 				[]FirewallInterface `json:"ports,omitempty"`
 	// +optional
-	VMUUID string `json:"vmUUID,omitempty"`
+	VMUUID 				string `json:"vmUUID,omitempty"`
 	// +optional
-	HasCloudInit bool   `json:"hasCloudInit,omitempty"`
+	HasCloudInitDisk 	bool   `json:"hasCloudInitDisk,omitempty"`
+	// se hasCloudInitDisk è true, allora cloudInitUserData è ignorato
+	// +optional
+	CloudInitUserData 	string `json:"cloudInitUserData,omitempty"` 
 }
 
 type FirewallInterface struct {
-	Name        string `json:"name"`
-	Index       int    `json:"index"`
-	NetworkName string `json:"networkName"`
+	Name        		string `json:"name"`
+	Index       		int    `json:"index"`
+	NetworkName			string `json:"networkName"`
+	VlanID 				*int32 `json:"vlanID,omitempty"`
+	UplinkInterface 	string `json:"uplinkInterface,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall.

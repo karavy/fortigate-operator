@@ -22,6 +22,12 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the k8s-operator-fortigate itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- nodebridge_admin_role.yaml
+- nodebridge_editor_role.yaml
+- nodebridge_viewer_role.yaml
+- firewallconfig_admin_role.yaml
+- firewallconfig_editor_role.yaml
+- firewallconfig_viewer_role.yaml
 - firewall_admin_role.yaml
 - firewall_editor_role.yaml
 - firewall_viewer_role.yaml

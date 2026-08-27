@@ -57,6 +57,7 @@ type FortigateFirewallReconciler struct {
 // +kubebuilder:rbac:groups=subresources.kubevirt.io,resources=virtualmachines/pause,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=subresources.kubevirt.io,resources=virtualmachines/unpause,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=subresources.kubevirt.io,resources=virtualmachines/migrate,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch;create;update;patch;delete
 
 func (r *FortigateFirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = logf.FromContext(ctx)
