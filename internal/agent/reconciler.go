@@ -48,7 +48,7 @@ func (r *NodeBridgeAgentReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		vlanAware = *nb.Spec.VlanAware
 	}
 
-	if err := ensureBridge(nb.Spec.UplinkInterface, nb.Spec.VlanID, vlanAware, nb.Spec.BridgeName); err != nil {
+	if err := ensureBridge(nb.Spec.UplinkInterface, nb.Spec.VlanID, vlanAware, nb.Spec.BridgeName, nb.Spec.GatewayIP); err != nil {
 		logger.Error(err, "creazione bridge fallita", "nodeBridge", nb.Name)
 		if statusErr := r.updateNodeStatus(ctx, req.NamespacedName, false, err.Error()); statusErr != nil {
 			return ctrl.Result{}, statusErr

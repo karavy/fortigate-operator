@@ -18,26 +18,33 @@ iptables -I FORWARD -i br-ext -j ACCEPT
 iptables -I FORWARD -o br-ext -j ACCEPT
 
 ### IP per VLAN sulle NAD (bridge creato dall'operator/NodeBridge)
-Il bridge (es. br-ext) viene creato VLAN-aware dall'operator. Per ogni VLAN referenziata dalle
-NetworkAttachmentDefinition (campo `vlanID` delle porte) va creata sul nodo una sub-interfaccia
-802.1q sul bridge, con il proprio indirizzo di gateway. Ripetere per ogni <VLAN_ID>/<IP> usati dalle NAD:
+Il bridge (es. br-ext, o il nome impostato in spec.bridgeName della NodeBridge) viene creato
+VLAN-aware dall'operator. Per ogni VLAN referenziata dalle NetworkAttachmentDefinition (campo
+`vlanID` delle porte) va creata sul nodo una sub-interfaccia 802.1q sul bridge, con il proprio
+indirizzo di gateway. Ripetere per ogni <VLAN_ID>/<IP> usati dalle NAD:
 
-bridge vlan add dev br-ext vid <VLAN_ID> self
-ip link add link br-ext name br-ext.<VLAN_ID> type vlan id <VLAN_ID>
-ip link set br-ext.<VLAN_ID> up
-ip addr add <IP>/<PREFIX> dev br-ext.<VLAN_ID>
+bridge vlan add dev <BRIDGE_NAME> vid <VLAN_ID> self
+ip link add link <BRIDGE_NAME> name vlan<VLAN_ID> type vlan id <VLAN_ID>
+ip link set vlan<VLAN_ID> up
+ip addr add <IP>/<PREFIX> dev vlan<VLAN_ID>
+
+NOTA: i nomi interfaccia Linux sono limitati a 15 caratteri (IFNAMSIZ). Se il bridge ha un nome
+già lungo (es. `br-91f65f7372cd`, tipico dei bridge auto-generati da Docker), NON concatenare
+`<BRIDGE_NAME>.<VLAN_ID>` come nome della sub-interfaccia: si supera il limite e `ip link add`
+fallisce con "not a valid ifname". Usare invece un nome breve indipendente (es. `vlan<VLAN_ID>`
+come sopra): il parametro `link <BRIDGE_NAME>` è sufficiente ad associarla al bridge corretto.
 
 Esempio con due VLAN (10 e 20):
 
 bridge vlan add dev br-ext vid 10 self
-ip link add link br-ext name br-ext.10 type vlan id 10
-ip link set br-ext.10 up
-ip addr add 192.168.10.254/24 dev br-ext.10
+ip link add link br-ext name vlan10 type vlan id 10
+ip link set vlan10 up
+ip addr add 192.168.10.254/24 dev vlan10
 
 bridge vlan add dev br-ext vid 20 self
-ip link add link br-ext name br-ext.20 type vlan id 20
-ip link set br-ext.20 up
-ip addr add 192.168.20.254/24 dev br-ext.20
+ip link add link br-ext name vlan20 type vlan id 20
+ip link set vlan20 up
+ip addr add 192.168.20.254/24 dev vlan20
 
 ### Sul pc che ospita Docker
 sudo ip route add 192.168.99.0/24 via <ip container docker su cui gira kind>

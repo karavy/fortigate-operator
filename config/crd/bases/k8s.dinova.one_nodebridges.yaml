@@ -43,6 +43,12 @@ spec:
                 description: BridgeName è il nome del bridge Linux da creare. Deve
                   essere univoco per nodo.
                 type: string
+              gatewayIP:
+                description: |-
+                  GatewayIP, se impostato, è l'indirizzo (in notazione CIDR, es. 192.168.10.254/24)
+                  da assegnare sul nodo alla sub-interface 802.1q della VLAN indicata da VlanID.
+                  Richiede che VlanID sia impostato.
+                type: string
               nodeSelector:
                 additionalProperties:
                   type: string

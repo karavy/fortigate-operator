@@ -54,6 +54,12 @@ type FirewallInterface struct {
 	NetworkName			string `json:"networkName"`
 	VlanID 				*int32 `json:"vlanID,omitempty"`
 	UplinkInterface 	string `json:"uplinkInterface,omitempty"`
+
+	// GatewayIP, se impostato, è l'indirizzo (in notazione CIDR, es. 192.168.10.254/24)
+	// da assegnare sul nodo alla sub-interface 802.1q della VLAN, usato come gateway
+	// per la subnet servita da questa porta. Richiede che VlanID sia impostato.
+	// +optional
+	GatewayIP 			string `json:"gatewayIP,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall.

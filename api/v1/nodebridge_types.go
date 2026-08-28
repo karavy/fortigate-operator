@@ -49,6 +49,12 @@ type NodeBridgeSpec struct {
 	// BridgeName è il nome del bridge Linux da creare. Deve essere univoco per nodo.
 	// +optional
 	BridgeName 	string `json:"bridgeName,omitempty"`
+
+	// GatewayIP, se impostato, è l'indirizzo (in notazione CIDR, es. 192.168.10.254/24)
+	// da assegnare sul nodo alla sub-interface 802.1q della VLAN indicata da VlanID.
+	// Richiede che VlanID sia impostato.
+	// +optional
+	GatewayIP string `json:"gatewayIP,omitempty"`
 }
 
 // NodeBridgeNodeStatus è lo stato riportato da un singolo agent per il proprio nodo.

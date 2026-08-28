@@ -182,6 +182,7 @@ func (r *FirewallReconciler) ensureNodeBridges(ctx context.Context, fw *k8sdinov
 			nb.Spec.UplinkInterface = port.UplinkInterface
 			nb.Spec.VlanID = port.VlanID
 			nb.Spec.BridgeName = bridgeName
+			nb.Spec.GatewayIP = port.GatewayIP
 			return controllerutil.SetControllerReference(fw, nb, r.Scheme)
 		})
 		if err != nil {
