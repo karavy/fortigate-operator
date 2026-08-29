@@ -1,4 +1,4 @@
-package controller
+package terraform
 
 import (
 	"context"
@@ -13,6 +13,9 @@ import (
 	"github.com/hashicorp/hcl/v2/hclparse"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	fileutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/fileutils"
+	s3utils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/s3utils"
+	configs "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/configs"
 )
 
 // 1. copia il template terraform da s3 in una directory temporanea dedicata al firewall (es: /tmp/fortigate1)
@@ -30,11 +33,11 @@ func copyTerraformFiles(firewallInstance *k8sdinovaonev1.FortigateFirewall, work
 		return nil, err
 	}
 
-	cfg := CurrentOperatorConfig()
+	cfg := configs.CurrentOperatorConfig()
 
 	// copia il file common dalla directory temporanea al working dir di terrform
 	//common deve sempre essere copiato perché contiene la definizione del provider e del backend, che sono necessari per terraform init
-	if err := copyFiles(workingDir+"/rules-templates/"+cfg.CommonTemplateSuffix, workingDir, fortiConfigName); err != nil {
+	if err := fileutils.CopyFiles(workingDir+"/rules-templates/"+cfg.CommonTemplateSuffix, workingDir, fortiConfigName); err != nil {
 		fmt.Printf("Errore durante la copia dei file: %v\n", err)
 		return nil, err
 	}
@@ -42,7 +45,7 @@ func copyTerraformFiles(firewallInstance *k8sdinovaonev1.FortigateFirewall, work
 	// copia il file dalla directory temporanea al working dir di terrform
 	// modificando i parmetri necessari
 
-	if err := copyFiles(workingDir+"/rules-templates/"+templateName, workingDir, fortiConfigName); err != nil {
+	if err := fileutils.CopyFiles(workingDir+"/rules-templates/"+templateName, workingDir, fortiConfigName); err != nil {
 		fmt.Printf("Errore durante la copia dei file: %v\n", err)
 		return nil, err
 	}
@@ -50,7 +53,7 @@ func copyTerraformFiles(firewallInstance *k8sdinovaonev1.FortigateFirewall, work
 	return tf, nil
 }
 
-func prepareTerraformEnvironment(fortiConfig k8sdinovaonev1.FortigateConfig, firewallInstance *k8sdinovaonev1.FortigateFirewall, s3Url string, accessKeyID string, secretAccessKey string) (string, error) {
+func PrepareTerraformEnvironment(fortiConfig k8sdinovaonev1.FortigateConfig, firewallInstance *k8sdinovaonev1.FortigateFirewall, s3Url string, accessKeyID string, secretAccessKey string) (string, error) {
 	// 1. Crea una directory temporanea per il firewall specifico (es: /tmp/fortigate1)
 	// se esiste già continua ad usarla (così da mantenere lo stato e i plugin scaricati)
 	// non genera errori se la directory esiste già
@@ -65,20 +68,20 @@ func prepareTerraformEnvironment(fortiConfig k8sdinovaonev1.FortigateConfig, fir
 
 	fmt.Printf("Effective ID per il firewall '%s': %s\n", fortiConfig.Name, effectiveID)
 
-	if err := creaDirectory("/tmp/" + firewallInstance.Name + "/" + fortiConfig.Name + "/" + effectiveID + "/data-dir"); err != nil {
+	if err := fileutils.CreateDirectory("/tmp/" + firewallInstance.Name + "/" + fortiConfig.Name + "/" + effectiveID + "/data-dir"); err != nil {
 		fmt.Println(err)
 		return "", err
 	}
 
-	if err := creaDirectory("/tmp/" + firewallInstance.Name + "/plugin-cache-dir"); err != nil {
+	if err := fileutils.CreateDirectory("/tmp/" + firewallInstance.Name + "/plugin-cache-dir"); err != nil {
 		fmt.Println(err)
 		return "", err
 	}
 
-	cfg := CurrentOperatorConfig()
+	cfg := configs.CurrentOperatorConfig()
 
 	//copia sempre il common terraform
-	if err := copyS3DirContent(firewallInstance.Spec.S3BucketName, accessKeyID, secretAccessKey, s3Url,
+	if err := s3utils.CopyS3DirContent(firewallInstance.Spec.S3BucketName, accessKeyID, secretAccessKey, s3Url,
 		"rules-templates/" + cfg.CommonTemplateSuffix,
 		"/tmp/" + firewallInstance.Name + "/" + fortiConfig.Name + "/" + effectiveID + "/"); err != nil {
 		fmt.Println(err)
@@ -86,7 +89,7 @@ func prepareTerraformEnvironment(fortiConfig k8sdinovaonev1.FortigateConfig, fir
 	}
 
 	//copia il template terraform da s3 nella directory temporanea dedicata al firewall (es: /tmp/fortigate1)
-	if err := copyS3DirContent(firewallInstance.Spec.S3BucketName, accessKeyID, secretAccessKey, s3Url,
+	if err := s3utils.CopyS3DirContent(firewallInstance.Spec.S3BucketName, accessKeyID, secretAccessKey, s3Url,
 		"rules-templates/"+fortiConfig.Spec.TerraformTemplateS3Key,
 		"/tmp/" + firewallInstance.Name + "/" + fortiConfig.Name + "/" + effectiveID + "/"); err != nil {
 		fmt.Println(err)
@@ -187,7 +190,7 @@ func initTerraform(tf *tfexec.Terraform, fortiConfig k8sdinovaonev1.FortigateCon
 	// oppure se non esiste il file .terraform.lock.hcl
 
 	tfLockFile := "/tmp/"+firewallInstance.Name+"/"+fortiConfig.Name+"/"+id+"/.terraform.lock.hcl"
-	commonTfFile := "/tmp/"+firewallInstance.Name+"/"+fortiConfig.Name+"/"+id+"/"+firewallInstance.Name+"_"+ DefaultOperatorConfig().CommonTemplateSuffix
+	commonTfFile := "/tmp/"+firewallInstance.Name+"/"+fortiConfig.Name+"/"+id+"/"+firewallInstance.Name+"_"+ configs.DefaultOperatorConfig().CommonTemplateSuffix
 
 	if _, err := os.Stat(tfLockFile); os.IsNotExist(err) {
 		fmt.Println("⚠️ Il file .terraform.lock.hcl non esiste, eseguo terraform init...")

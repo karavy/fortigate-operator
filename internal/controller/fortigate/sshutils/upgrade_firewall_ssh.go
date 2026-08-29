@@ -1,4 +1,4 @@
-package controller
+package sshutils
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 	snapshotv1 "kubevirt.io/api/snapshot/v1alpha1"
 )
 
-func upgradeFirmwareSSH(stdin io.WriteCloser, stdout io.Reader, url string) (string, error) {
+func UpgradeFirmwareSSH(stdin io.WriteCloser, stdout io.Reader, url string) (string, error) {
 
 	go func() {
 		defer stdin.Close()
@@ -58,7 +58,7 @@ func upgradeFirmwareSSH(stdin io.WriteCloser, stdout io.Reader, url string) (str
 
 	return output, nil
 }
-func triggerKubeVirtVMSnapshot(ctx context.Context, r *FortigateUpdateReconciler, namespace, vmName, snapshotName string) error {
+func TriggerKubeVirtVMSnapshot(ctx context.Context, r client.Client, namespace, vmName, snapshotName string) error {
 	// 1. Definizione del VirtualMachineSnapshot
 	apiGroup := "kubevirt.io"
 	vmSnapshot := &snapshotv1.VirtualMachineSnapshot{
@@ -77,7 +77,7 @@ func triggerKubeVirtVMSnapshot(ctx context.Context, r *FortigateUpdateReconciler
 
 	// 1. Definiamo l'oggetto (vuoto) per verificare se esiste già nel cluster
 	existingSnapshot := &snapshotv1.VirtualMachineSnapshot{}
-	err := r.Client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: snapshotName}, existingSnapshot)
+	err := r.Get(ctx, client.ObjectKey{Namespace: namespace, Name: snapshotName}, existingSnapshot)
 
 	if err == nil {
 		// La snapshot esiste già! Scegli l'azione desiderata:
@@ -95,7 +95,7 @@ func triggerKubeVirtVMSnapshot(ctx context.Context, r *FortigateUpdateReconciler
 
 	// 2. Creazione della risorsa usando il client del reconciler (r.Client)
 	// Nota: Kubebuilder usa logr per i log, evita il fmt.Printf nei controller veri e propri
-	if err := r.Client.Create(ctx, vmSnapshot); err != nil {
+	if err := r.Create(ctx, vmSnapshot); err != nil {
 		fmt.Printf("Errore creazione VirtualMachineSnapshot: %v", err)
 		return err
 	}
@@ -103,7 +103,7 @@ func triggerKubeVirtVMSnapshot(ctx context.Context, r *FortigateUpdateReconciler
 	return nil
 }
 
-func deleteKubeVirtVMSnapshot(ctx context.Context, r *FortigateUpdateReconciler, namespace, snapshotName string) error {
+func DeleteKubeVirtVMSnapshot(ctx context.Context, r client.Client, namespace, snapshotName string) error {
 	// 1. Definiamo la struttura minima con Name e Namespace
 	vmSnapshot := &snapshotv1.VirtualMachineSnapshot{
 		ObjectMeta: metav1.ObjectMeta{
@@ -113,7 +113,7 @@ func deleteKubeVirtVMSnapshot(ctx context.Context, r *FortigateUpdateReconciler,
 	}
 
 	// 2. Richiesta di eliminazione al cluster
-	err := r.Client.Delete(ctx, vmSnapshot)
+	err := r.Delete(ctx, vmSnapshot)
 	if err != nil {
 		// Se l'oggetto non esiste già più, consideriamo l'operazione riuscita (idempotenza)
 		if apierrors.IsNotFound(err) {

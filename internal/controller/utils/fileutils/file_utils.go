@@ -1,4 +1,4 @@
-package controller
+package fileutils
 
 import (
 	"fmt"
@@ -9,9 +9,8 @@ import (
 	"strings"
 )
 
-// CreaDirectory prende in input il percorso della cartella e la crea.
-// Restituisce un errore se l'operazione fallisce.
-func creaDirectory(path string) error {
+// CreaDirectory prende in input il percorso della cartella e la cb
+func CreateDirectory(path string) error {
 	err := os.MkdirAll(path, 0755)
 	if err != nil {
 		return fmt.Errorf("impossibile creare la directory %s: %w", path, err)
@@ -19,7 +18,7 @@ func creaDirectory(path string) error {
 	return nil
 }
 
-func copyFiles(pattern, destinationDir string, filePrefix string) error {
+func CopyFiles(pattern, destinationDir string, filePrefix string) error {
 	// 1. Trova tutti i file che corrispondono al wildcard (es. assegna i file .tf)
 	files, err := filepath.Glob(pattern)
 	if err != nil {
@@ -47,7 +46,7 @@ func copyFiles(pattern, destinationDir string, filePrefix string) error {
 		fileDestinazione := filepath.Join(destinationDir, filePrefix+"_"+nomeFile)
 
 		// Esegui la copia del singolo file
-		err := copyFile(fileSorgente, fileDestinazione)
+		err := CopyFile(fileSorgente, fileDestinazione)
 		if err != nil {
 			fmt.Printf("errore durante la copia di %s: %v", fileSorgente, err)
 			return err
@@ -58,7 +57,7 @@ func copyFiles(pattern, destinationDir string, filePrefix string) error {
 	return nil
 }
 
-func copyFile(src, dst string) error {
+func CopyFile(src, dst string) error {
 	// 1. Apri il file sorgente in modalità lettura
 	sorgente, err := os.Open(src)
 	if err != nil {
@@ -69,7 +68,7 @@ func copyFile(src, dst string) error {
 
 	// 2. Assicurati che la cartella di destinazione esista (stile mkdir -p)
 	cartellaDestinazione := filepath.Dir(dst)
-	err = os.MkdirAll(cartellaDestinazione, 0755)
+	err = CreateDirectory(cartellaDestinazione)
 	if err != nil {
 		return fmt.Errorf("impossibile creare la cartella di destinazione %s: %w", cartellaDestinazione, err)
 	}
@@ -97,7 +96,7 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
-func listAllFilesInDir(dirName string) ([]string, error) {
+func ListAllFilesInDir(dirName string) ([]string, error) {
 	var files []string
 
 	// Puliamo il percorso iniziale per evitare problemi con i vari "./" o "../"
@@ -146,7 +145,8 @@ func listAllFilesInDir(dirName string) ([]string, error) {
 }
 
 // modifyFileValue legge un file, sostituisce la vecchia stringa con la nuova e riscalda il file su disco.
-func modifyFileValue(filePath string, mods []modification) error {
+// mods è oldValue -> newValue.
+func ModifyFileValue(filePath string, mods map[string]string) error {
 	// 1. Leggi l'intero contenuto del file originale
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -157,8 +157,8 @@ func modifyFileValue(filePath string, mods []modification) error {
 	// 2. Esegui la sostituzione dei valori in memoria
 	// strings.ReplaceAll sostituisce TUTTE le occorrenze di oldVal con newVal
 	modifiedContent := string(content)
-	for _, mod := range mods {
-		modifiedContent = strings.ReplaceAll(modifiedContent, mod.oldValue, mod.newValue)
+	for oldValue, newValue := range mods {
+		modifiedContent = strings.ReplaceAll(modifiedContent, oldValue, newValue)
 	}
 
 	// 3. Ottieni i permessi del file originale per mantenerli inalterati
@@ -181,7 +181,7 @@ func modifyFileValue(filePath string, mods []modification) error {
 	return nil
 }
 
-func readFileContent(filename string) (string, error) {
+func ReadFileContent(filename string) (string, error) {
 	// 1. Leggi il file. Ritorna un array di byte ([]byte) e un errore
 	contentBytes, err := os.ReadFile(filename)
 	if err != nil {

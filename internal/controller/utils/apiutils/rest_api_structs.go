@@ -1,4 +1,4 @@
-package controller
+package apiutils
 
 type FortigateSystemStatus struct {
 	HTTPMethod string `json:"http_method"`
@@ -35,7 +35,7 @@ type VIP struct {
 	UUID     string     `json:"uuid"`
 }
 
-type apiResponse struct {
+type APIResponse struct {
 	Status  string `json:"status"`
 	Serial  string `json:"serial"`
 	Version string `json:"version"`

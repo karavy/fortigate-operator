@@ -32,6 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	terraform "github.com/karavy/k8s-operator-fortigate/internal/controller/terraform"
+	secretsutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/secretsutils"
 )
 
 // FortigateConfigReconciler reconciles a FortigateConfig object
@@ -76,7 +78,7 @@ func (r *FortigateConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	uuid, err := prepareTerraformEnvironment(fortiConfig, firewallInstance, s3Url, accessKeyID, secretAccessKey)
+	uuid, err := terraform.PrepareTerraformEnvironment(fortiConfig, firewallInstance, s3Url, accessKeyID, secretAccessKey)
 	if err != nil {
 		fmt.Printf("Errore durante la preparazione dell'ambiente Terraform: %v\n", err)
 		return ctrl.Result{}, err
@@ -137,7 +139,7 @@ func getS3CredentialsFromSecret(ctx context.Context, r *FortigateConfigReconcile
 		return "", "", "", nil
 	}
 
-	awsKey, err := getSecretValues(ctx, r.Client, namespace, awsCredentialSecretName, []string{"s3Url", "accessKeyID", "secretAccessKey"})
+	awsKey, err := secretsutils.GetSecretValues(ctx, r.Client, namespace, awsCredentialSecretName, []string{"s3Url", "accessKeyID", "secretAccessKey"})
 	if err != nil {
 		return "", "", "", err
 	}
@@ -153,7 +155,7 @@ func doReconcileConfig(ctx context.Context, r *FortigateConfigReconciler, req ct
 		return statusInfo, err
 	}
 
-	uuid, err := prepareTerraformEnvironment(fortiConfig, firewallInstance, s3Url, accessKeyID, secretAccessKey)
+	uuid, err := terraform.PrepareTerraformEnvironment(fortiConfig, firewallInstance, s3Url, accessKeyID, secretAccessKey)
 	if err != nil {
 		fmt.Printf("Errore durante la preparazione dell'ambiente Terraform: %v\n", err)
 		return statusInfo, err
@@ -175,7 +177,7 @@ func modifyTFFiles(fortiConfig k8sdinovaonev1.FortigateConfig, firewallInstance 
 	fmt.Printf("Working dir: %s\n", workingDir)
 
 	fortiIP := fmt.Sprintf("%s-%s-ssh-gui.%s.svc.cluster.local", firewallInstance.Name, firewallInstance.Spec.FortigateVersion, fortiConfig.Namespace)
-	if err := selectOperatorRule(template, workingDir, firewallInstance.Status.Token, fortiIP, fortiConfig, firewallInstance, s3Url, accessKeyID, secretAccessKey, uuid, true); err != nil {
+	if err := terraform.SelectOperatorRule(template, workingDir, firewallInstance.Status.Token, fortiIP, fortiConfig, firewallInstance, s3Url, accessKeyID, secretAccessKey, uuid, true); err != nil {
 		fmt.Printf("OperatorRule '%v' non riconosciuta. Nessuna azione eseguita.\n", err)
 		return "", "", err
 	}
@@ -203,7 +205,7 @@ func (r *FortigateConfigReconciler) deleteExternalResources(fortiConfig *k8sdino
 	}
 
 	fortiIP := fmt.Sprintf("%s-%s-ssh-gui.%s.svc.cluster.local", firewallInstance.Name, firewallInstance.Spec.FortigateVersion, fortiConfig.Namespace)
-	if err := selectOperatorRule(fortiConfig.Spec.TerraformTemplateS3Key, workingDir, firewallInstance.Status.Token, fortiIP, *fortiConfig, firewallInstance, s3Url, accessKeyID, secretAccessKey, uuid, false); err != nil {
+	if err := terraform.SelectOperatorRule(fortiConfig.Spec.TerraformTemplateS3Key, workingDir, firewallInstance.Status.Token, fortiIP, *fortiConfig, firewallInstance, s3Url, accessKeyID, secretAccessKey, uuid, false); err != nil {
 		fmt.Printf("OperatorRule '%v' non riconosciuta. Nessuna azione eseguita.\n", err)
 		return err
 	}

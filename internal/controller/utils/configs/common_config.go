@@ -1,4 +1,4 @@
-package controller
+package configs
 
 // Questo file rende configurabili via ConfigMap i tag "comuni" (provider/
 // backend Terraform: IP, token, bucket S3, ecc.) applicati a OGNI CR a
@@ -94,17 +94,17 @@ func commonRuntimeValues(token, fortiIP, bucketName, tfStateName, s3Url string) 
 // ConfigMap) produce un valore vuoto E un avviso su stderr, invece di
 // bloccare l'intera regola - coerente con come rule_configdriven.go
 // gestisce già i percorsi non risolvibili.
-func buildCommonMods(token, fortiIP, bucketName, tfStateName, s3Url string) []modification {
+func BuildCommonMods(token, fortiIP, bucketName, tfStateName, s3Url string) map[string]string {
 	values := commonRuntimeValues(token, fortiIP, bucketName, tfStateName, s3Url)
 	mappings := CurrentCommonMappings()
 
-	mods := make([]modification, 0, len(mappings))
+	mods := make(map[string]string, len(mappings))
 	for tag, valueName := range mappings {
 		val, known := values[valueName]
 		if !known {
 			fmt.Printf("[tfCommon] attenzione: %q non è un nome di parametro runtime riconosciuto (validi: %v) - il tag <%s> resterà vuoto\n", valueName, commonRuntimeValueNames, tag)
 		}
-		mods = append(mods, modification{oldValue: fmt.Sprintf("<%s>", tag), newValue: val})
+		mods[fmt.Sprintf("<%s>", tag)] = val
 	}
 	return mods
 }

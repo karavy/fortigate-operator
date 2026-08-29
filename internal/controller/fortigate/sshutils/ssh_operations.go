@@ -1,4 +1,4 @@
-package controller
+package sshutils
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
 	"golang.org/x/crypto/ssh"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type SSHOperations int
@@ -23,7 +24,7 @@ const (
 	UPGRADEFIRMWARE_API
 )
 
-func DoSSHOperations(ctx context.Context, r *FortigateFirewallReconciler, req ctrl.Request, operation SSHOperations, instance *k8sdinovaonev1.FortigateFirewall) (any, error) {
+func DoSSHOperations(ctx context.Context, r client.Client, req ctrl.Request, operation SSHOperations, instance *k8sdinovaonev1.FortigateFirewall) (any, error) {
 	// 1. Configura i parametri di connessione
 	fortiIP := fmt.Sprintf("%s-%s-ssh-gui.%s.svc.cluster.local:22", instance.Name, instance.Spec.FortigateVersion, instance.Namespace)
 	sshUser := "admin"
@@ -107,7 +108,7 @@ func DoSSHOperations(ctx context.Context, r *FortigateFirewallReconciler, req ct
 	case FIREWALLREADYWITHLICENSE:
 		return executeFirewallReadyCommand(stdin, stdout, true)
 	case UPGRADEFIRMWARE_SSH:
-		return upgradeFirmwareSSH(stdin, stdout, "http://firmware-server:80/FGT_7.2.0_Firewall.out")
+		return UpgradeFirmwareSSH(stdin, stdout, "http://firmware-server:80/FGT_7.2.0_Firewall.out")
 	default:
 		fmt.Printf("Operazione SSH non riconosciuta: %v", operation)
 		return nil, fmt.Errorf("operazione SSH non riconosciuta: %v", operation)

@@ -1,4 +1,4 @@
-package controller
+package terraform
 
 // Logica di merge pura, senza dipendenze da client-go/controller-runtime -
 // separata apposta in questo file da rule_from_configmaps_client.go (dove

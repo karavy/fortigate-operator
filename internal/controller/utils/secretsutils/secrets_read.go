@@ -1,4 +1,4 @@
-package controller
+package secretsutils
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func getSecretValues(ctx context.Context, c client.Client, namespace string, name string, keys []string) (map[string]string, error) {
+func GetSecretValues(ctx context.Context, c client.Client, namespace string, name string, keys []string) (map[string]string, error) {
 	secret := &corev1.Secret{}
 	err := c.Get(ctx, client.ObjectKey{
 		Namespace: namespace,

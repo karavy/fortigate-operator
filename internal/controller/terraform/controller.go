@@ -1,16 +1,15 @@
-package controller
+package terraform
 
 import (
 	"fmt"
 	"os"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
-)
+	fileutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/fileutils"
+	s3utils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/s3utils"
 
-type modification struct {
-	oldValue string
-	newValue string
-}
+	configs "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/configs"
+)
 
 // tfCommon applies the substitutions shared by every OperatorRule (S3
 // backend / provider wiring). I tag applicati e a quale parametro runtime
@@ -18,8 +17,13 @@ type modification struct {
 // CurrentCommonMappings() (vedi common_config.go), configurabile tramite
 // la sezione "common" di rules.json/della ConfigMap - stesso principio
 // già applicato alle OperatorRule con rule_configdriven.go.
-func tfCommon(token, fortiIP, bucketName, tfStateName, s3Url, filename string) ([]modification, error) {
-	mods := buildCommonMods(token, fortiIP, bucketName, tfStateName, s3Url)
+//
+// mods è oldValue -> newValue (mappa, tipo standard) invece di uno slice
+// di struct dedicata: ogni tag <FGT_XXX> compare come chiave una sola
+// volta per chiamata, quindi non serve preservare un ordine o permettere
+// duplicati.
+func tfCommon(token, fortiIP, bucketName, tfStateName, s3Url, filename string) (map[string]string, error) {
+	mods := configs.BuildCommonMods(token, fortiIP, bucketName, tfStateName, s3Url)
 
 	// modifyFileValue legge E scrive su "filename" così com'è - deve
 	// restare il path REALE su cui copyTerraformFiles ha messo il file
@@ -27,7 +31,7 @@ func tfCommon(token, fortiIP, bucketName, tfStateName, s3Url, filename string) (
 	// "..._00_common.tf.tmpl"). Non tocchiamo filename PRIMA di questa
 	// chiamata: modifyFileValue fallirebbe in lettura cercando un file
 	// che non esiste con un nome diverso da quello reale su disco.
-	if err := modifyFileValue(filename, mods); err != nil {
+	if err := fileutils.ModifyFileValue(filename, mods); err != nil {
 		return nil, fmt.Errorf("modifica di %s fallita: %w", filename, err)
 	}
 
@@ -47,7 +51,7 @@ func tfCommon(token, fortiIP, bucketName, tfStateName, s3Url, filename string) (
 	return mods, nil
 }
 
-func selectOperatorRule(template, workingDir, token, fortiIP string, fortiConfig k8sdinovaonev1.FortigateConfig, firewallInstance *k8sdinovaonev1.FortigateFirewall, s3Url, accessKeyID, secretAccessKey, uuid string, createOrUpdate bool) error {
+func SelectOperatorRule(template, workingDir, token, fortiIP string, fortiConfig k8sdinovaonev1.FortigateConfig, firewallInstance *k8sdinovaonev1.FortigateFirewall, s3Url, accessKeyID, secretAccessKey, uuid string, createOrUpdate bool) error {
 
 	// il file sarà copiato in workingDir/templateName, quindi il nome del file sarà workingDir/templateName
 	tf, err := copyTerraformFiles(firewallInstance, workingDir, template)
@@ -95,8 +99,8 @@ func selectOperatorRule(template, workingDir, token, fortiIP string, fortiConfig
 	}
 	// --- fine punto di dispatch ---
 
-	tfStateName := firewallInstance.Name + "/" + uuid + "/" + fortiConfig.Name + "/" + CurrentOperatorConfig().TerraformStateFileName
-	commonFile := workingDir + "/" + firewallInstance.Name + "_" + CurrentOperatorConfig().CommonTemplateSuffix
+	tfStateName := firewallInstance.Name + "/" + uuid + "/" + fortiConfig.Name + "/" + configs.CurrentOperatorConfig().TerraformStateFileName
+	commonFile := workingDir + "/" + firewallInstance.Name + "_" + configs.CurrentOperatorConfig().CommonTemplateSuffix
 
 	if _, err := tfCommon(token, fortiIP, firewallInstance.Spec.S3BucketName, tfStateName, s3Url, commonFile); err != nil {
 		return fmt.Errorf("creazione delle modifiche comuni fallita: %w", err)
@@ -117,7 +121,7 @@ func selectOperatorRule(template, workingDir, token, fortiIP string, fortiConfig
 		// altrimenti si cancella la directory sbagliata, lasciando lo stato
 		// reale orfano su S3.
 		s3Key := firewallInstance.Name + "/" + uuid
-		if err := deleteS3Dir(firewallInstance.Spec.S3BucketName, s3Key, accessKeyID, secretAccessKey, s3Url); err != nil {
+		if err := s3utils.DeleteS3Dir(firewallInstance.Spec.S3BucketName, s3Key, accessKeyID, secretAccessKey, s3Url); err != nil {
 			return fmt.Errorf("cancellazione della directory S3 fallita: %w", err)
 		}
 	}

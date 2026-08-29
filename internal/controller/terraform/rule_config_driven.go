@@ -1,4 +1,4 @@
-package controller
+package terraform
 
 // Questo file sostituisce la necessità di scrivere un rule_xxx.go per ogni
 // nuovo file Terraform: le regole vivono in dati (un file JSON, pensato
@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	configs "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/configs"
 )
 
 // RuleMappingConfig descrive come riempire i placeholder del template
@@ -102,7 +103,7 @@ type FieldValidation struct {
 // regola, più una voce per ogni fortiConfig.Spec.OperatorRule che si
 // vuole supportare.
 type RulesFile struct {
-	Common CommonMappingConfig          `json:"common,omitempty"`
+	Common configs.CommonMappingConfig          `json:"common,omitempty"`
 	Rules  map[string]RuleMappingConfig `json:"rules"`
 }
 
@@ -202,7 +203,7 @@ func LoadOperatorRulesFromBytes(data []byte) error {
 // LoadOperatorRulesFromBytes (un solo file) e LoadOperatorRulesFromDirectory
 // (più file), così non c'è logica duplicata tra i due.
 func applyRulesFile(rf RulesFile, source string) error {
-	SetCommonConfig(rf.Common)
+	configs.SetCommonConfig(rf.Common)
 	names := make([]string, 0, len(rf.Rules))
 	for name, cfg := range rf.Rules {
 		cfg := cfg // cattura per closure
@@ -213,7 +214,7 @@ func applyRulesFile(rf RulesFile, source string) error {
 		))
 		names = append(names, name)
 	}
-	fmt.Printf("[operator-rules] caricate %d regole da %s: %v (mapping comuni: %d)\n", len(names), source, names, len(CurrentCommonMappings()))
+	fmt.Printf("[operator-rules] caricate %d regole da %s: %v (mapping comuni: %d)\n", len(names), source, names, len(configs.CurrentCommonMappings()))
 	return nil
 }
 
@@ -302,14 +303,11 @@ func specToMap(cfg k8sdinovaonev1.FortigateConfig) (map[string]interface{}, erro
 // vedi IndexedResourceFile/smart_nested_process.go. Un percorso non
 // risolvibile (campo assente/opzionale) produce una stringa vuota invece
 // di far fallire l'intera regola.
-func buildMods(mappings map[string]string, cfgName string, dataMap map[string]interface{}, suffix string) []modification {
-	mods := make([]modification, 0, len(mappings))
+func buildMods(mappings map[string]string, cfgName string, dataMap map[string]interface{}, suffix string) map[string]string {
+	mods := make(map[string]string, len(mappings))
 	for tag, path := range mappings {
 		val, _ := lookupPath(cfgName, dataMap, path)
-		mods = append(mods, modification{
-			oldValue: fmt.Sprintf("<%s%s>", tag, suffix),
-			newValue: val,
-		})
+		mods[fmt.Sprintf("<%s%s>", tag, suffix)] = val
 	}
 	return mods
 }

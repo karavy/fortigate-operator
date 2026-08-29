@@ -1,4 +1,4 @@
-package controller
+package terraform
 
 // This file defines the extension point for fortiConfig.Spec.OperatorRule.
 //

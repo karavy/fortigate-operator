@@ -1,4 +1,4 @@
-package controller
+package upgrade
 
 // scraper.go - Recupera il percorso di upgrade da Fortinet Upgrade Path Tool
 //
@@ -195,7 +195,7 @@ func normalizeVersion(v string) string {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-func getUpgradePath(model, from, to string) ([]VersionDetail, error) {
+func GetUpgradePath(model, from, to string) ([]VersionDetail, error) {
 	model = normalizeVersion(model)
 	from = normalizeVersion(from)
 	to = normalizeVersion(to)

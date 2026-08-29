@@ -1,4 +1,4 @@
-package controller
+package sshutils
 
 import (
 	"bytes"
@@ -10,17 +10,18 @@ import (
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func GetFirewallReady(ctx context.Context, r *FortigateFirewallReconciler, req ctrl.Request, instance *k8sdinovaonev1.FortigateFirewall) bool {
+func GetFirewallReady(ctx context.Context, r client.Client, req ctrl.Request, instance *k8sdinovaonev1.FortigateFirewall) bool {
 	return waitFirewallReady(ctx, r, req, false, instance)
 }
 
-func GetFirewallReadyWithLicense(ctx context.Context, r *FortigateFirewallReconciler, req ctrl.Request, instance *k8sdinovaonev1.FortigateFirewall) bool {
+func GetFirewallReadyWithLicense(ctx context.Context, r client.Client, req ctrl.Request, instance *k8sdinovaonev1.FortigateFirewall) bool {
 	return waitFirewallReady(ctx, r, req, true, instance)
 }
 
-func waitFirewallReady(ctx context.Context, r *FortigateFirewallReconciler, req ctrl.Request, withLicense bool, instance *k8sdinovaonev1.FortigateFirewall) bool {
+func waitFirewallReady(ctx context.Context, r client.Client, req ctrl.Request, withLicense bool, instance *k8sdinovaonev1.FortigateFirewall) bool {
 	counter := 0
 
 	for {

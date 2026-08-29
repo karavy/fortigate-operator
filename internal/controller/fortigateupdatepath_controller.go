@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	upgrade "github.com/karavy/k8s-operator-fortigate/internal/controller/fortigate/upgrade"
 )
 
 // FortigateUpdatePathReconciler reconciles a FortigateUpdatePath object
@@ -117,7 +118,7 @@ func (r *FortigateUpdatePathReconciler) Reconcile(ctx context.Context, req ctrl.
 	statusInfo := currentResource.Status
 
 	if statusInfo.UpdatePath.PathStatusValid != true {
-		path, err := getUpgradePath(currentResource.Spec.Model, currentResource.Spec.StartVersion, currentResource.Spec.NewVersion)
+		path, err := upgrade.GetUpgradePath(currentResource.Spec.Model, currentResource.Spec.StartVersion, currentResource.Spec.NewVersion)
 		if err != nil {
 			fmt.Println(err)
 			return ctrl.Result{}, err

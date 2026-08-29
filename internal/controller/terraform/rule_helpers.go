@@ -1,9 +1,11 @@
-package controller
+package terraform
 
 import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	fileutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/fileutils"
 )
 
 // splitTerraformExt calcola (base, ext) garantendo che ext sia SEMPRE
@@ -53,8 +55,8 @@ func IndexedResourceFile(baseFile string, index int) string {
 // applyMods runs modifyFileValue against path and wraps any error with
 // which file/rule it belongs to, so handlers don't each need their own
 // fmt.Printf("Errore durante la modifica dei file: %v\n", err) copy.
-func applyMods(path string, mods []modification) error {
-	if err := modifyFileValue(path, mods); err != nil {
+func applyMods(path string, mods map[string]string) error {
+	if err := fileutils.ModifyFileValue(path, mods); err != nil {
 		return fmt.Errorf("modifica di %s fallita: %w", path, err)
 	}
 	return nil

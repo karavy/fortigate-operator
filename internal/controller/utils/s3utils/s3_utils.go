@@ -1,4 +1,4 @@
-package controller
+package s3utils
 
 import (
 	"bytes"
@@ -17,7 +17,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	fileutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/fileutils"
+	configs "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/configs"
 )
 
 //Key ID:              GK272b9021c2c5734620f47e94
@@ -34,12 +37,12 @@ const (
 )
 
 func writeS3File(filename string, content string, bucketName string, accessKeyID string, secretAccessKey string, s3Url string, overwrite bool) error {
-	client, err := createS3Client(accessKeyID, secretAccessKey, s3Url)
+	client, err := CreateS3Client(accessKeyID, secretAccessKey, s3Url)
 	if err != nil {
 		fmt.Printf("errore durante la creazione del client S3: %v", err)
 		return err
 	}
-	if err := writeS3Data(bucketName, filename, content, client, overwrite); err != nil {
+	if err := WriteS3Data(bucketName, filename, content, client, overwrite); err != nil {
 		fmt.Printf("errore durante la scrittura su S3: %v", err)
 		return err
 	}
@@ -47,12 +50,12 @@ func writeS3File(filename string, content string, bucketName string, accessKeyID
 	return nil
 }
 
-func copyS3DirContent(bucketName string, accessKeyID string, secretAccessKey string, s3Url string, s3Prefix string, localTargetDir string) error {
+func CopyS3DirContent(bucketName string, accessKeyID string, secretAccessKey string, s3Url string, s3Prefix string, localTargetDir string) error {
 	// Configurazione dei parametri
 
 	ctx := context.TODO()
 
-	s3Client, err := createS3Client(accessKeyID, secretAccessKey, s3Url)
+	s3Client, err := CreateS3Client(accessKeyID, secretAccessKey, s3Url)
 	if err != nil {
 		fmt.Printf("errore durante la creazione del client S3: %v", err)
 		return err
@@ -137,7 +140,7 @@ func downloadFile(ctx context.Context, client *s3.Client, bucket, key, localPath
 }
 
 func readS3FileContent(bucketName string, filename string, accessKeyID string, secretAccessKey string, s3Url string) string {
-	client, err := createS3Client(accessKeyID, secretAccessKey, s3Url)
+	client, err := CreateS3Client(accessKeyID, secretAccessKey, s3Url)
 	if err != nil {
 		fmt.Printf("errore durante la creazione del client S3: %v", err)
 		return ""
@@ -174,13 +177,13 @@ func readS3FileContent(bucketName string, filename string, accessKeyID string, s
 	return ""
 }
 
-func createS3Client(accessKeyID string, secretAccessKey string, s3Url string) (*s3.Client, error) {
+func CreateS3Client(accessKeyID string, secretAccessKey string, s3Url string) (*s3.Client, error) {
 	staticProvider := credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")
 
 	// 2. Inizializza la configurazione AWS forzando l'endpoint personalizzato di Garage
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(staticProvider),
-		config.WithRegion(CurrentOperatorConfig().S3Region), // Garage non ha regioni, ma l'SDK richiede una stringa
+		config.WithRegion(configs.CurrentOperatorConfig().S3Region), // Garage non ha regioni, ma l'SDK richiede una stringa
 	)
 	if err != nil {
 		fmt.Printf("Impossibile caricare la configurazione: %v", err)
@@ -199,7 +202,7 @@ func createS3Client(accessKeyID string, secretAccessKey string, s3Url string) (*
 }
 
 func createS3Bucket(bucketName string, accessKeyID string, secretAccessKey string, s3Url string) {
-	client, err := createS3Client(accessKeyID, secretAccessKey, s3Url)
+	client, err := CreateS3Client(accessKeyID, secretAccessKey, s3Url)
 	if err != nil {
 		fmt.Printf("errore durante la creazione del client S3: %v", err)
 		return
@@ -218,7 +221,7 @@ func createS3Bucket(bucketName string, accessKeyID string, secretAccessKey strin
 	}
 }
 
-func writeS3Data(bucketName string, fileName string, content string, client *s3.Client, overwrite bool) error {
+func WriteS3Data(bucketName string, fileName string, content string, client *s3.Client, overwrite bool) error {
 	data := []byte(content)
 
 	if !overwrite {
@@ -268,7 +271,7 @@ func getS3Bucket(client *s3.Client, bucketName string) *types.Bucket {
 }
 
 func getS3AllBuckets(accessKeyID string, secretAccessKey string, s3Url string) {
-	client, err := createS3Client(accessKeyID, secretAccessKey, s3Url)
+	client, err := CreateS3Client(accessKeyID, secretAccessKey, s3Url)
 	if err != nil {
 		fmt.Printf("errore durante la creazione del client S3: %v", err)
 		return
@@ -352,7 +355,7 @@ func getAllDirs(folder string, bucketName string, accessKeyID string, secretAcce
 	// La cartella di partenza che vuoi esplorare (deve finire con /)
 	targetFolder := strings.TrimSpace(folder)
 
-	client, err := createS3Client(accessKeyID, secretAccessKey, s3Url)
+	client, err := CreateS3Client(accessKeyID, secretAccessKey, s3Url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create S3 client: %w", err)
 	}
@@ -436,8 +439,8 @@ func getUUIDFromS3(fortiConfig k8sdinovaonev1.FortigateConfig, firewallInstance 
 	return "", errors.New("Errore imprevisto durante il recupero dell'UUID da S3")
 }
 
-func deleteS3Dir(bucketName string, dirName string, accessKeyID string, secretAccessKey string, s3Url string) error {
-	client, err := createS3Client(accessKeyID, secretAccessKey, s3Url)
+func DeleteS3Dir(bucketName string, dirName string, accessKeyID string, secretAccessKey string, s3Url string) error {
+	client, err := CreateS3Client(accessKeyID, secretAccessKey, s3Url)
 	if err != nil {
 		return fmt.Errorf("failed to create S3 client: %w", err)
 	}
@@ -489,4 +492,33 @@ func deleteS3Dir(bucketName string, dirName string, accessKeyID string, secretAc
 	}
 
 	return nil
+}
+
+func SyncTerraformS3Bucket(s3Url, accessKeyID, secretAccessKey, bucketName string) bool {
+	// 1. Crea un client S3 utilizzando le credenziali fornite
+
+	allDirs, err := fileutils.ListAllFilesInDir("/terraform-templates")
+	if err != nil {
+		fmt.Printf("Errore durante la lettura dei file: %v\n", err)
+		return false
+	}
+
+	for _, fileSorgente := range allDirs {
+
+		content, err := fileutils.ReadFileContent(fileSorgente)
+		if err != nil {
+			fmt.Printf("Errore durante la lettura del file: %v\n", err)
+			return false
+		}
+
+		fileName := "rules-templates/" + filepath.Base(fileSorgente)
+
+		err = writeS3File(fileName, content, bucketName, accessKeyID, secretAccessKey, s3Url, true)
+		if err != nil {
+			fmt.Printf("Errore durante la scrittura su S3: %v\n", err)
+			return false
+		}
+	}
+
+	return true
 }

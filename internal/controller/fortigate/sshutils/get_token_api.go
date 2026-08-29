@@ -1,4 +1,4 @@
-package controller
+package sshutils
 
 import (
 	"bytes"
@@ -10,11 +10,14 @@ import (
 	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	secretsutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/secretsutils"
 )
 
-func getAPIToken(ctx context.Context, r *FortigateFirewallReconciler, req ctrl.Request, stdin io.WriteCloser, stdout io.Reader) (string, error) {
+func getAPIToken(ctx context.Context, r client.Client, req ctrl.Request, stdin io.WriteCloser, stdout io.Reader) (string, error) {
 
-	creds, err := getSecretValues(ctx, r.Client, req.Namespace, "forti-credentials", []string{"adminPassword", "apiUserName"})
+	creds, err := secretsutils.GetSecretValues(ctx, r, req.Namespace, "forti-credentials", []string{"adminPassword", "apiUserName"})
 	if err != nil {
 		return "", fmt.Errorf("Errore durante la lettura dei secret: %v", err)
 	}

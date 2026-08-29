@@ -24,12 +24,14 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	pvcutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/pvcutils"
 )
 
 func createFirewall(r *FirewallReconciler, ctx context.Context, instance *k8sdinovaonev1.Firewall, portsNADs []firewallPortNAD) (k8sdinovaonev1.FirewallStatus, error) {
 	statusInfo := k8sdinovaonev1.FirewallStatus{}
 
-	if err := CreateNewFirewallPVC(ctx, r, instance); err != nil {
+	if err := pvcutils.CreateNewFirewallPVC(ctx, r.Client, instance); err != nil {
 		fmt.Printf("Errore durante la creazione del PVC: %v\n", err)
 		return statusInfo, err
 	}

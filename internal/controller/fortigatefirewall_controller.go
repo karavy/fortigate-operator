@@ -33,6 +33,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	fortigate "github.com/karavy/k8s-operator-fortigate/internal/controller/fortigate"
+	pvcutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/pvcutils"
 )
 
 // FortigateFirewallReconciler reconciles a FortigateFirewall object
@@ -110,28 +112,10 @@ func (r *FortigateFirewallReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	awsCredentialSecretName := instance.Spec.AWSCredentialSecretName
-
-	if awsCredentialSecretName == "" {
-		fmt.Println("Fortigate URL o nome del secret AWS non specificati. Verifica la configurazione.")
-		err := fmt.Errorf("Fortigate URL o nome del secret AWS non specificati. Verifica la configurazione.")
-		return ctrl.Result{}, err
-	}
-
-	awsKey, err := getSecretValues(ctx, r.Client, req.Namespace, awsCredentialSecretName, []string{"s3Url", "accessKeyID", "secretAccessKey"})
+	statusInfo, err := fortigate.DoFirewallStartup(ctx, r.Client, req, instance, *r.Scheme)
 	if err != nil {
+		fmt.Printf("Errore durante la creazione del firewall: %v\n", err)
 		return ctrl.Result{}, err
-	}
-
-	statusInfo, err := doReconcileFirewall(ctx, r, req, instance)
-	if err != nil {
-		fmt.Printf("Errore durante la riconciliazione del firewall: %v\n", err)
-		return ctrl.Result{}, err
-	}
-
-	if syncTerraformS3Bucket(awsKey["s3Url"], awsKey["accessKeyID"], awsKey["secretAccessKey"], instance.Spec.S3BucketName) != true {
-		fmt.Println("Errore durante la sincronizzazione del bucket S3")
-		return ctrl.Result{}, fmt.Errorf("errore durante la sincronizzazione del bucket S3")
 	}
 
 	err = updateFortigateFirewallStatus(r, instance, statusInfo)
@@ -156,15 +140,15 @@ func (r *FortigateFirewallReconciler) deleteExternalResources(resource *k8sdinov
 
 	fmt.Printf("Inizio della cancellazione delle risorse esterne per il firewall: %s\n", resource.Name)
 
-	if err := DeleteFortigateFirewall(ctx, r, resource.Name, resource.Spec.FortigateVersion, resource.Namespace); err != nil {
+	if err := fortigate.DeleteFortigateFirewall(ctx, r.Client, resource.Name, resource.Spec.FortigateVersion, resource.Namespace); err != nil {
 		return err
 	}
 
-	if err := DeleteFortigateFirewallSvc(ctx, r, resource.Name, resource.Spec.FortigateVersion, resource.Namespace); err != nil {
+	if err := fortigate.DeleteFortigateFirewallSvc(ctx, r.Client, resource.Name, resource.Spec.FortigateVersion, resource.Namespace); err != nil {
 		return err
 	}
 
-	if err := DeleteFirewallPVC(ctx, r, resource.Name, resource.Spec.FortigateVersion, resource.Namespace); err != nil {
+	if err := pvcutils.DeleteFirewallPVC(ctx, r.Client, resource.Name, resource.Spec.FortigateVersion, resource.Namespace); err != nil {
 		return err
 	}
 
@@ -178,66 +162,6 @@ func (r *FortigateFirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named("fortigatefirewall").
 		Complete(r)
-}
-
-func doReconcileFirewall(ctx context.Context, r *FortigateFirewallReconciler, req ctrl.Request, instance *k8sdinovaonev1.FortigateFirewall) (k8sdinovaonev1.FortigateFirewallStatus, error) {
-	statusInfo := k8sdinovaonev1.FortigateFirewallStatus{}
-
-	if err := CreateNewFortigateFirewallPVC(instance.Name, instance.Spec.FortigateVersion, instance.Namespace, instance.Spec.PVCStorageClass, ctx, r, "fortigate"); err != nil {
-		fmt.Printf("Errore durante la creazione del PVC: %v\n", err)
-		return statusInfo, err
-	}
-	if err := r.createFortigateFirewall(ctx, instance.Name, instance.Spec.FortigateVersion, instance.Namespace, instance.Spec); err != nil {
-		fmt.Printf("Errore durante la creazione della VMI: %v\n", err)
-		return statusInfo, err
-	}
-
-	if err := createFortigateService(ctx, r, instance); err != nil {
-		fmt.Printf("Errore durante la creazione del Service: %v\n", err)
-		return statusInfo, err
-	}
-
-	// aspetta che il firewall sia pronto prima di procedere con la registrazione della licenza
-	if GetFirewallReady(ctx, r, req, instance) == false {
-		return statusInfo, fmt.Errorf("firewall non pronto")
-	}
-
-	switch instance.Spec.LicenseType {
-	case "trial":
-		if _, err := DoSSHOperations(ctx, r, req, REGISTERLICENSE, instance); err != nil {
-			fmt.Printf("Errore durante la registrazione della licenza: %v\n", err)
-			return statusInfo, err
-		}
-
-		if GetFirewallReadyWithLicense(ctx, r, req, instance) == false {
-			fmt.Printf("Firewall non pronto dopo la registrazione della licenza. Verifica manuale consigliata.\n")
-			return statusInfo, fmt.Errorf("firewall non pronto dopo la registrazione della licenza")
-		}
-	case "none":
-		// Non fare nulla, procedi senza registrare la licenza
-		fmt.Println("Nessuna licenza richiesta o licenza già esistente")
-	case "flex":
-		//TODO
-	case "file":
-		//TODO
-	default:
-		fmt.Printf("Tipo di licenza non valido: %s\n", instance.Spec.LicenseType)
-		return statusInfo, fmt.Errorf("tipo di licenza non valido: %s", instance.Spec.LicenseType)
-	}
-
-	if instance.Status.Token == "" {
-		token, err := DoSSHOperations(ctx, r, req, GETTOKEN, instance)
-		if err != nil {
-			fmt.Println("Impossibile ottenere il token")
-		} else {
-			statusInfo.Token = token.(string)
-			fmt.Println("Token ottenuto")
-		}
-	} else {
-		statusInfo.Token = instance.Status.Token
-	}
-
-	return statusInfo, nil
 }
 
 func updateFortigateFirewallStatus(r *FortigateFirewallReconciler, fw *k8sdinovaonev1.FortigateFirewall, statusInfo k8sdinovaonev1.FortigateFirewallStatus) error {

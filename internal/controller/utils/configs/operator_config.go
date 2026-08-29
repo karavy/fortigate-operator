@@ -1,4 +1,4 @@
-package controller
+package configs
 
 // Questo file gestisce le impostazioni GENERALI dell'operator (non
 // specifiche di una singola OperatorRule) - separato apposta da

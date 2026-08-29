@@ -1,4 +1,4 @@
-package controller
+package pvcutils
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
 )
@@ -60,7 +61,7 @@ func createPVC(firewallType string, firewallName string, version string, namespa
 	return nil
 }
 
-func CreateNewFirewallPVC(ctx context.Context, r *FirewallReconciler, instance *k8sdinovaonev1.Firewall) error {
+func CreateNewFirewallPVC(ctx context.Context, r client.Client, instance *k8sdinovaonev1.Firewall) error {
 	firewallName := instance.Name
 	version := instance.Spec.Version
 	namespace := instance.Namespace
@@ -82,7 +83,7 @@ func CreateNewFirewallPVC(ctx context.Context, r *FirewallReconciler, instance *
 	return nil
 }
 
-func CreateNewFortigateFirewallPVC(firewallName string, version string, namespace string, storageClassName string, ctx context.Context, r *FortigateFirewallReconciler, firewallType string) error {
+func CreateNewFortigateFirewallPVC(firewallName string, version string, namespace string, storageClassName string, ctx context.Context, r client.Client, firewallType string) error {
 	// verifica che la storage class esista
 	storageClass := &storagev1.StorageClass{}
 
@@ -134,7 +135,7 @@ func CheckFirewallPVC(name string, namespace string) error {
 	return nil
 }
 
-func DeleteFirewallPVC(ctx context.Context, r *FortigateFirewallReconciler, firewallName string, fortigateVersion string, namespace string) error {
+func DeleteFirewallPVC(ctx context.Context, r client.Client, firewallName string, fortigateVersion string, namespace string) error {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Printf("Errore nel caricamento della configurazione: %v", err)

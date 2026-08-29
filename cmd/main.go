@@ -42,8 +42,11 @@ import (
 	snapshotv1 "kubevirt.io/api/snapshot/v1alpha1"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	"github.com/karavy/k8s-operator-fortigate/internal/controller/utils/configs"
 	"github.com/karavy/k8s-operator-fortigate/internal/controller"
 	webhookv1 "github.com/karavy/k8s-operator-fortigate/internal/webhook/v1"
+
+	terraform "github.com/karavy/k8s-operator-fortigate/internal/controller/terraform"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -204,7 +207,7 @@ func main() {
 	// TODO: verifica il namespace giusto per il tuo caso - qui assumo lo
 	// stesso namespace del pod dell'operator ("default" nel tuo manager.yaml
 	// attuale); se le ConfigMap delle regole vivono altrove, cambialo.
-	if err := controller.LoadOperatorRulesFromConfigMaps(context.Background(), mgr.GetAPIReader(), "default", rulesLabelSelector); err != nil {
+	if err := terraform.LoadOperatorRulesFromConfigMaps(context.Background(), mgr.GetAPIReader(), "default", rulesLabelSelector); err != nil {
 		setupLog.Error(err, "Failed to load operator rules from ConfigMaps", "selector", rulesLabelSelectorStr)
 		os.Exit(1)
 	}
@@ -213,11 +216,11 @@ func main() {
 	if operatorConfigPath == "" {
 		operatorConfigPath = "/etc/fgt-operator-config/operator-config.json"
 	}
-	if opCfg, err := controller.LoadOperatorConfigFromFile(operatorConfigPath); err != nil {
+	if opCfg, err := configs.LoadOperatorConfigFromFile(operatorConfigPath); err != nil {
 		setupLog.Error(err, "Failed to load operator config", "path", operatorConfigPath)
 		os.Exit(1)
 	} else {
-		controller.SetOperatorConfig(opCfg)
+		configs.SetOperatorConfig(opCfg)
 	}
 
 	err = mgr.GetFieldIndexer().IndexField(context.Background(), &k8sdinovaonev1.FortigateUpdatePath{}, "spec.model", func(rawObj client.Object) []string {

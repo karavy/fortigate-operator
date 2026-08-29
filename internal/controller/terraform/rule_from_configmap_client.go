@@ -1,4 +1,4 @@
-package controller
+package terraform
 
 // Questo file contiene SOLO la parte che parla con l'API di Kubernetes -
 // la logica di merge vera e propria (testata per intero) vive in

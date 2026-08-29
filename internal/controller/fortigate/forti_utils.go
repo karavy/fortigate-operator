@@ -1,4 +1,4 @@
-package controller
+package fortigate
 
 import (
 	"context"
@@ -10,71 +10,25 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/rest"
-	kubevirtv1 "kubevirt.io/api/core/v1"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"k8s.io/client-go/rest"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
-func (r *FortigateFirewallReconciler) createFortigateFirewall(ctx context.Context, firewallName string, fortigateVersion string, namespace string, spec k8sdinovaonev1.FortigateFirewallSpec) error {
-	existingVM := &kubevirtv1.VirtualMachine{}
-	err := r.Get(ctx, client.ObjectKey{Name: firewallName, Namespace: namespace}, existingVM)
 
-	if err == nil {
-		fmt.Println("La VMI esiste già, aggiorno")
-		interfaces, networks, err := createFortigateManifestNIC(spec.Ports)
-		if err != nil {
-			fmt.Printf("Errore creazione interfacce: %v\n", err)
-			return err
-		}
-
-		originalVM := existingVM.DeepCopy() // Crea una copia dell'oggetto originale
-		existingVM.Spec.Template.Spec.Networks = networks
-		existingVM.Spec.Template.Spec.Domain.Devices.Interfaces = interfaces
-
-		if !equality.Semantic.DeepEqual(originalVM.Spec, existingVM.Spec) { 
-			if err := r.Patch(ctx, existingVM, client.MergeFrom(originalVM)); err != nil {
-				fmt.Printf("Errore durante l'aggiornamento della VM: %v\n", err)
-				return err
-			}
-
-			fmt.Println("VMI aggiornata con successo, riavvio della VM")
-
-			if err := r.restartFortigateVM(ctx, firewallName, namespace); err != nil {
-				fmt.Printf("Errore durante il riavvio della VM: %v\n", err)
-				return err
-			}
-
-			fmt.Println("VMI aggiornata con successo")
-		} else {
-			fmt.Println("Nessuna modifica rilevata nella VMI, nessun aggiornamento necessario")
-		}
-		
-		return nil
-	}
-
-	// la vm non esiste, la creo
-	vmi := createFortigateManifest(firewallName, fortigateVersion, namespace, spec)
-
-	if err := r.Create(ctx, vmi); err != nil {
-		fmt.Printf("Errore durante la creazione della VMI: %v\n", err)
-		return err
-	}
-
-	return nil
-}
-
-func createFortigateService(ctx context.Context, r *FortigateFirewallReconciler, instance *k8sdinovaonev1.FortigateFirewall) error {
+func createFortigateService(ctx context.Context, r client.Client, instance *k8sdinovaonev1.FortigateFirewall, scheme *runtime.Scheme) error {
 	svc := createFortigateFirewallService(instance.Name, instance.Spec.FortigateVersion, instance.Namespace)
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
+	op, err := controllerutil.CreateOrUpdate(ctx, r, svc, func() error {
 		// Imposta il selettore usando il nome dell'istanza corrente
 		svc.Spec.Selector = map[string]string{
 			"vmi.kubevirt.io/id": fmt.Sprintf("%s", instance.Name), // Assicurati che questa label corrisponda a quella usata nella VMI
@@ -99,7 +53,7 @@ func createFortigateService(ctx context.Context, r *FortigateFirewallReconciler,
 		}
 
 		// Imposta l'Owner Reference (Legame di parentela)
-		return controllerutil.SetControllerReference(instance, svc, r.Scheme)
+		return controllerutil.SetControllerReference(instance, svc, scheme)
 	})
 
 	if err != nil {
@@ -144,7 +98,7 @@ func createFortigateFirewallService(firewallName string, fortigateVersion string
 	}
 }
 
-func DeleteFortigateFirewallSvc(ctx context.Context, r *FortigateFirewallReconciler, firewallName string, fortigateVersion string, namespace string) error {
+func DeleteFortigateFirewallSvc(ctx context.Context, r client.Client, firewallName string, fortigateVersion string, namespace string) error {
 	svcName := fmt.Sprintf("%s-%s-ssh-gui", firewallName, fortigateVersion)
 	svc := &v1.Service{}
 	err := r.Get(ctx, types.NamespacedName{Name: svcName, Namespace: namespace}, svc)
@@ -163,7 +117,7 @@ func DeleteFortigateFirewallSvc(ctx context.Context, r *FortigateFirewallReconci
 	return nil
 }
 
-func DeleteFortigateFirewall(ctx context.Context, r *FortigateFirewallReconciler, firewallName string, fortigateVersion string, namespace string) error {
+func DeleteFortigateFirewall(ctx context.Context, r client.Client, firewallName string, fortigateVersion string, namespace string) error {
 	vm := &unstructured.Unstructured{}
 	vm.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "kubevirt.io",
@@ -204,6 +158,54 @@ func DeleteFortigateFirewall(ctx context.Context, r *FortigateFirewallReconciler
 	}
 
 	return err
+}
+
+func createFortigateFirewall(ctx context.Context, firewallName string, fortigateVersion string, namespace string, spec k8sdinovaonev1.FortigateFirewallSpec, r client.Client) error {
+	existingVM := &kubevirtv1.VirtualMachine{}
+	err := r.Get(ctx, client.ObjectKey{Name: firewallName, Namespace: namespace}, existingVM)
+
+	if err == nil {
+		fmt.Println("La VMI esiste già, aggiorno")
+		interfaces, networks, err := createFortigateManifestNIC(spec.Ports)
+		if err != nil {
+			fmt.Printf("Errore creazione interfacce: %v\n", err)
+			return err
+		}
+
+		originalVM := existingVM.DeepCopy() // Crea una copia dell'oggetto originale
+		existingVM.Spec.Template.Spec.Networks = networks
+		existingVM.Spec.Template.Spec.Domain.Devices.Interfaces = interfaces
+
+		if !equality.Semantic.DeepEqual(originalVM.Spec, existingVM.Spec) { 
+			if err := r.Patch(ctx, existingVM, client.MergeFrom(originalVM)); err != nil {
+				fmt.Printf("Errore durante l'aggiornamento della VM: %v\n", err)
+				return err
+			}
+
+			fmt.Println("VMI aggiornata con successo, riavvio della VM")
+
+			if err := restartFortigateVM(ctx, firewallName, namespace, r); err != nil {
+				fmt.Printf("Errore durante il riavvio della VM: %v\n", err)
+				return err
+			}
+
+			fmt.Println("VMI aggiornata con successo")
+		} else {
+			fmt.Println("Nessuna modifica rilevata nella VMI, nessun aggiornamento necessario")
+		}
+		
+		return nil
+	}
+
+	// la vm non esiste, la creo
+	vmi := createFortigateManifest(firewallName, fortigateVersion, namespace, spec)
+
+	if err := r.Create(ctx, vmi); err != nil {
+		fmt.Printf("Errore durante la creazione della VMI: %v\n", err)
+		return err
+	}
+
+	return nil
 }
 
 func createFortigateManifestNIC(ports []k8sdinovaonev1.FortigateInterface) ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {
@@ -347,7 +349,8 @@ func createFortigateManifest(firewallName string, fortigateVersion string, names
 
 	return (vm)
 }
-func (r *FortigateFirewallReconciler) restartFortigateVM(ctx context.Context, firewallName string, namespace string) error {
+
+func restartFortigateVM(ctx context.Context, firewallName string, namespace string, r client.Client) error {
 	existingVM := &kubevirtv1.VirtualMachine{}
 	err := r.Get(ctx, client.ObjectKey{Name: firewallName, Namespace: namespace}, existingVM)
 	if err != nil {

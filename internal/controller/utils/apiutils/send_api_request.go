@@ -1,4 +1,4 @@
-package controller
+package apiutils
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	s3utils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/s3utils"
 )
 
 // FortigateClient gestisce la comunicazione REST con l'appliance
@@ -86,7 +87,7 @@ func SendCommandApiPost(ctx context.Context, address string, token string, bodyI
 
 	switch op {
 	case UPGRADEFIRMWARE:
-		resp, err := upgradeFortigateFirmware(ctx, fortiClient, bodyInfo, S3BucketName, accessKeyID, secretAccessKey, s3Url)
+		resp, err := UpgradeFortigateFirmware(ctx, fortiClient, bodyInfo, S3BucketName, accessKeyID, secretAccessKey, s3Url)
 		if err != nil {
 			fmt.Printf("Failed to upgrade firmware: %v\n", err)
 			return "", fmt.Errorf("failed to upgrade firmware: %w", err)
@@ -123,26 +124,26 @@ func sendRequest(client *http.Client, req *http.Request, format int) (any, error
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("HTTP request failed: %v\n", err)
-		return apiResponse{}, fmt.Errorf("HTTP request failed: %w", err)
+		return APIResponse{}, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// Verifica dello status code (Fortigate restituisce 200 OK se la CMDB viene aggiornata)
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("fortigate API returned error status: %s (%d)", resp.Status, resp.StatusCode)
-		return apiResponse{}, fmt.Errorf("fortigate API error: status=%s code=%d", resp.Status, resp.StatusCode)
+		return APIResponse{}, fmt.Errorf("fortigate API error: status=%s code=%d", resp.Status, resp.StatusCode)
 	}
 
 	switch format {
 	case FORMATFORTIGATE:
-		var apiResp apiResponse
+		var apiResp APIResponse
 
 		fmt.Println(resp.Body)
 
 		// Parsing della risposta JSON (Fortigate restituisce un oggetto con la versione del firmware)
 
 		if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-			return apiResponse{}, fmt.Errorf("failed to decode API response: %w", err)
+			return APIResponse{}, fmt.Errorf("failed to decode API response: %w", err)
 		}
 
 		return apiResp, nil
@@ -158,14 +159,14 @@ func sendRequest(client *http.Client, req *http.Request, format int) (any, error
 		}
 		return statusResp, nil
 	default:
-		var apiResp apiResponse
+		var apiResp APIResponse
 
 		// Se non è il formato Fortigate, leggiamo semplicemente il body come stringa
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			fmt.Printf("Failed to read response body: %v\n", err)
-			return apiResponse{}, fmt.Errorf("failed to read response body: %w", err)
+			return APIResponse{}, fmt.Errorf("failed to read response body: %w", err)
 		}
 
 		apiResp.Status = string(bodyBytes)
@@ -239,7 +240,7 @@ func backupFortigateConfig(firewallName string, ctx context.Context, f *Fortigat
 			return "", "", fmt.Errorf("failed to send HTTP request for backup: %w", err)
 		}
 
-		return backupContent.(apiResponse).Status, filename, nil
+		return backupContent.(APIResponse).Status, filename, nil
 	} else {
 		fmt.Println("Backup della configurazione già esistente, non verrà creato un nuovo backup.")
 
@@ -262,13 +263,13 @@ func getFwBackup(firewallName string, ctx context.Context, f *FortigateClient, b
 }
 
 func saveBackupToS3(filename string, content string, bucketName, accessKeyID, secretAccessKey, s3Url string) (string, error) {
-	client, err := createS3Client(accessKeyID, secretAccessKey, s3Url)
+	client, err := s3utils.CreateS3Client(accessKeyID, secretAccessKey, s3Url)
 	if err != nil {
 		fmt.Printf("Failed to create S3 client: %v\n", err)
 		return "", fmt.Errorf("failed to create S3 client: %w", err)
 	}
 
-	if err := writeS3Data(bucketName, filename, content, client, false); err != nil {
+	if err := s3utils.WriteS3Data(bucketName, filename, content, client, false); err != nil {
 		fmt.Printf("Failed to write backup to S3: %v\n", err)
 		return "", fmt.Errorf("failed to write backup to S3: %w", err)
 	}

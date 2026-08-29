@@ -20,10 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -32,8 +30,12 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/Masterminds/semver/v3"
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	
+	apiutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/apiutils"
+	upgrade "github.com/karavy/k8s-operator-fortigate/internal/controller/fortigate/upgrade"
+	secretsutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/secretsutils"
+	sshutils "github.com/karavy/k8s-operator-fortigate/internal/controller/fortigate/sshutils"
 )
 
 var ErrResourceNotFound = errors.New("resource not found")
@@ -94,7 +96,7 @@ func (r *FortigateUpdateReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	if err := updateFortigateUpgradeStatus(r, instance, statusInfo); err != nil {
+	if err := upgrade.UpdateFortigateUpgradeStatus(r.Client, instance, statusInfo); err != nil {
 		fmt.Printf("Errore durante l'aggiornamento dello status dell'update: %v\n", err)
 		return ctrl.Result{}, err
 	}
@@ -106,13 +108,13 @@ func doReconcile(ctx context.Context, r *FortigateUpdateReconciler, instance *k8
 	fortiIP := fmt.Sprintf("%s-%s-ssh-gui.%s.svc.cluster.local", fwInstance.Name, fwInstance.Spec.FortigateVersion, fwInstance.Namespace)
 
 	// 1. Get upgrade path based on model and version
-	model, err := SendCommandApiGet(fwInstance.Name, ctx, fortiIP, fwInstance.Status.Token, GETFWMODEL, "", "", "", "", nil)
+	model, err := apiutils.SendCommandApiGet(fwInstance.Name, ctx, fortiIP, fwInstance.Status.Token, apiutils.GETFWMODEL, "", "", "", "", nil)
 	if err != nil {
 		fmt.Printf("Errore durante la lettura del modello del firewall: %v\n", err)
 		return statusInfo, err
 	}
 
-	version, err := SendCommandApiGet(fwInstance.Name, ctx, fortiIP, fwInstance.Status.Token, GETFWVERSION, "", "", "", "", nil)
+	version, err := apiutils.SendCommandApiGet(fwInstance.Name, ctx, fortiIP, fwInstance.Status.Token, apiutils.GETFWVERSION, "", "", "", "", nil)
 	if err != nil {
 		fmt.Printf("Errore durante la lettura della versione del firewall: %v\n", err)
 		return statusInfo, err
@@ -123,13 +125,13 @@ func doReconcile(ctx context.Context, r *FortigateUpdateReconciler, instance *k8
 
 	if version != instance.Spec.NewVersion {
 		//TODO: deve recuperare il path dalla risorsa FortigateUpdatePath
-		pathStatus, err := r.GetStatusByParams(ctx, instance.Namespace, model, instance.Spec.NewVersion, version)
+		pathStatus, err := upgrade.GetStatusByParams(ctx, r.Client, instance.Namespace, model, instance.Spec.NewVersion, version)
 		if err != nil {
 			fmt.Printf("Errore durante il recupero del percorso di aggiornamento: %v\n", err)
 			return statusInfo, fmt.Errorf("nessun percorso di aggiornamento trovato per modello %s e nuova versione %s: %w", model, instance.Spec.NewVersion, ErrResourceNotFound)
 		}
 
-		backupFilename, snapshotName, err := backupForUpgradeFirewall(fwInstance, fwInstance.Spec.FortigateVersion, instance, fwInstance.Status.Token, ctx, r, statusInfo)
+		backupFilename, snapshotName, err := upgrade.BackupForUpgradeFirewall(fwInstance, fwInstance.Spec.FortigateVersion, instance, fwInstance.Status.Token, ctx, r.Client, statusInfo)
 		if err != nil {
 			fmt.Printf("Errore durante l'aggiornamento del firewall: %v\n", err)
 			statusInfo.BackupName = backupFilename
@@ -141,13 +143,13 @@ func doReconcile(ctx context.Context, r *FortigateUpdateReconciler, instance *k8
 		// Aggiorniamo lo status della risorsa FortigateUpdate con il nome del backup
 		
 		statusInfo.BackupName = backupFilename
-		if err := updateFortigateUpgradeStatus(r, instance, statusInfo); err != nil {
+		if err := upgrade.UpdateFortigateUpgradeStatus(r.Client, instance, statusInfo); err != nil {
 			fmt.Printf("Errore durante l'aggiornamento dello status dell'update: %v\n", err)
 			return statusInfo, err
 		}
 
 		// recupera le credenziali AWS dal secret specificato nella risorsa FortigateFirewall
-		awsKey, err := getSecretValues(ctx, r.Client, instance.Namespace, fwInstance.Spec.AWSCredentialSecretName, []string{"s3Url", "accessKeyID", "secretAccessKey"})
+		awsKey, err := secretsutils.GetSecretValues(ctx, r.Client, instance.Namespace, fwInstance.Spec.AWSCredentialSecretName, []string{"s3Url", "accessKeyID", "secretAccessKey"})
 		if err != nil {
 			fmt.Printf("Errore nel recupero dei valori del secret: %v", err)
 			return statusInfo, err
@@ -159,14 +161,14 @@ func doReconcile(ctx context.Context, r *FortigateUpdateReconciler, instance *k8
 
 				// TODO: Abbiamo fortimanager? Se sì, dobbiamo interagire per gestire l'upgrade (es. caricare la nuova image, creare il task di upgrade, monitorare lo stato del task)
 
-				resp, err := SendCommandApiPost(ctx, fortiIP, fwInstance.Status.Token, upgradePath.Version, UPGRADEFIRMWARE, fwInstance.Spec.S3BucketName, awsKey["accessKeyID"], awsKey["secretAccessKey"], awsKey["s3Url"])
+				resp, err := apiutils.SendCommandApiPost(ctx, fortiIP, fwInstance.Status.Token, upgradePath.Version, apiutils.UPGRADEFIRMWARE, fwInstance.Spec.S3BucketName, awsKey["accessKeyID"], awsKey["secretAccessKey"], awsKey["s3Url"])
 				if err != nil {
 					fmt.Printf("Errore nell'upgrade del firmware: %v", err)
 					return statusInfo, err
 				} else {
 					fmt.Printf("Firmware upgrade response: %s\n", resp)
 
-					if err := deleteKubeVirtVMSnapshot(ctx, r, fwInstance.Namespace, snapshotName); err != nil {
+					if err := sshutils.DeleteKubeVirtVMSnapshot(ctx, r.Client, fwInstance.Namespace, snapshotName); err != nil {
 						fmt.Printf("Errore durante la cancellazione della snapshot: %v", err)
 						return statusInfo, err
 					}
@@ -186,110 +188,4 @@ func (r *FortigateUpdateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named("fortigateupdate").
 		Complete(r)
-}
-
-func (r *FortigateUpdateReconciler) GetStatusByParams(ctx context.Context, namespace, nmodel, newVersion, currentVersion string) (*k8sdinovaonev1.FortigateUpdatePathStatus, error) {
-    var list k8sdinovaonev1.FortigateUpdatePathList
-
-    // 1. Riduciamo il set di dati filtrando in cache solo per il modello esatto
-    listOpts := []client.ListOption{
-        client.MatchingFields{"spec.model": nmodel},
-    }
-
-	fmt.Printf("Tentativo di recupero dello status del percorso di aggiornamento per modello=%s, target=%s\n", nmodel, newVersion)
-
-    if err := r.List(ctx, &list, listOpts...); err != nil {
-        fmt.Printf("Errore durante la list: %v\n", err)
-        return nil, fmt.Errorf("errore durante la list: %w", err)
-    }
-
-    // Parsea la versione da cercare (target)
-    targetVer, err := semver.NewVersion(newVersion)
-    if err != nil {
-		fmt.Printf("Errore durante il parsing della versione target '%s': %v\n", newVersion, err)
-        return nil, fmt.Errorf("la versione target '%s' non è un semver valido: %w", newVersion, err)
-    }
-
-	fmt.Printf("Versione target parsata correttamente: %s\n", targetVer.String())
-
-    // 2. Filtriamo in memoria per verificare i range di versione (Min/Max) e la startVersion
-    for _, item := range list.Items {
-        // Parsea i limiti della risorsa (Assumendo che la tua CRD abbia i campi Spec.MinVersion e Spec.MaxVersion)
-        minVer, errMin := semver.NewVersion(item.Spec.StartVersion)
-        maxVer, errMax := semver.NewVersion(item.Spec.NewVersion)
-        
-        if errMin != nil || errMax != nil {
-            fmt.Printf("Errore durante il parsing delle versioni per la risorsa %s: StartVersion='%s' (err: %v), NewVersion='%s' (err: %v)\n", item.Name, item.Spec.StartVersion, errMin, item.Spec.NewVersion, errMax)
-            continue
-        }
-
-		fmt.Printf("Controllando risorsa: %s, StartVersion: %s, NewVersion: %s, TargetVersion: %s\n", item.Name, minVer.String(), maxVer.String(), targetVer.String())
-
-        if (targetVer.GreaterThan(minVer) || targetVer.Equal(minVer)) && 
-           (targetVer.LessThan(maxVer) || targetVer.Equal(maxVer)) {
-            
-			fmt.Printf("Prima risorsa adatta trovata: %s, StartVersion: %s, NewVersion: %s\n", item.Name, minVer.String(), maxVer.String())
-			return &item.Status, nil
-        }
-    }
-
-    fmt.Printf("Nessuna risorsa adatta trovata per modello=%s, target=%s\n", nmodel, newVersion)
-
-	if err := r.createFortigateUpdatePath(currentVersion, newVersion, nmodel, namespace); err != nil {
-		fmt.Printf("Errore durante la creazione del percorso di aggiornamento: %v\n", err)
-		return nil, fmt.Errorf("errore durante la creazione del percorso di aggiornamento: %w", err)
-	}
-
-    return nil, fmt.Errorf("nessuna risorsa trovata nel range di versioni specificato")
-}
-
-func (r *FortigateUpdateReconciler) createFortigateUpdatePath(minVersion, maxVersion, model, namespace string) error {
-	newUpgradePath := &k8sdinovaonev1.FortigateUpdatePath{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("updatepath-%s-%s-to-%s", strings.ToLower(model), minVersion, maxVersion),
-			Namespace: namespace, // Cambia con il namespace appropriato
-		},
-		Spec: k8sdinovaonev1.FortigateUpdatePathSpec{
-			Model:        model,
-			StartVersion: minVersion,
-			NewVersion:   maxVersion,
-		},
-	}
-	
-	// Qui dovresti avere un client Kubernetes per creare la risorsa
-	if err := r.Create(context.Background(), newUpgradePath); err != nil {
-		fmt.Printf("Errore durante la creazione della risorsa FortigateUpdatePath: %v\n", err)
-		return fmt.Errorf("errore durante la creazione della risorsa FortigateUpdatePath: %w", err)
-	}
-
-	return nil
-}
-
-func updateFortigateUpgradeStatus(r *FortigateUpdateReconciler, fu *k8sdinovaonev1.FortigateUpdate, statusInfo k8sdinovaonev1.FortigateUpdateStatus) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// 1. Modifichiamo direttamente l'oggetto passato come puntatore (*fu)
-	fu.Status.Conditions = []metav1.Condition{
-		{
-			Type:               "Available",
-			Status:             metav1.ConditionTrue,
-			Reason:             "FortigateConfigApplied",
-			Message:            "La configurazione è stata applicata con successo a Fortigate",
-			LastTransitionTime: metav1.Now(), // È buona pratica aggiungere il timestamp nelle condizioni
-		},
-	}
-
-	fmt.Println("Tentativo di aggiornamento dello status dell'update nel cluster...")
-
-	fu.Status.BackupName = statusInfo.BackupName
-
-	// 2. Eseguiamo l'update dello status
-	if err := r.Status().Update(ctx, fu); err != nil {
-		fmt.Printf("Errore durante r.Status().Update: %v\n", err)
-		return err
-	}
-
-	fmt.Println("Stato aggiornato con successo sul cluster!")
-	return nil
 }

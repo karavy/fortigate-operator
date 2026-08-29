@@ -1,4 +1,4 @@
-package controller
+package terraform
 
 import (
 	"encoding/json"
