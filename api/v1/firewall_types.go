@@ -45,13 +45,20 @@ type FirewallSpec struct {
 	HasCloudInitDisk 	bool   `json:"hasCloudInitDisk,omitempty"`
 	// se hasCloudInitDisk è true, allora cloudInitUserData è ignorato
 	// +optional
-	CloudInitUserData 	string `json:"cloudInitUserData,omitempty"` 
+	CloudInitUserData 	string `json:"cloudInitUserData,omitempty"`
+	// +required
+	AWSCredentialSecretName string `json:"awsCredentialSecretName,omitempty"`
+	// +required
+	S3BucketName string `json:"s3BucketName,omitempty"`
+	// +required
+	LicenseType string `json:"licenseType,omitempty"`
+	// +optional
+	LicenseUserSecretName string `json:"licenseUserSecretName,omitempty"`
 }
 
 type FirewallInterface struct {
 	Name        		string `json:"name"`
 	Index       		int    `json:"index"`
-	NetworkName			string `json:"networkName"`
 	VlanID 				*int32 `json:"vlanID,omitempty"`
 	UplinkInterface 	string `json:"uplinkInterface,omitempty"`
 
@@ -83,6 +90,7 @@ type FirewallStatus struct {
 	// +listMapKey=type
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Token      string             `json:"token"`
 }
 
 // +kubebuilder:object:root=true

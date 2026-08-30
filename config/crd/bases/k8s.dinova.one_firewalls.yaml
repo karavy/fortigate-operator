@@ -39,12 +39,18 @@ spec:
           spec:
             description: spec defines the desired state of Firewall
             properties:
+              awsCredentialSecretName:
+                type: string
               cloudInitUserData:
                 description: se hasCloudInitDisk è true, allora cloudInitUserData
                   è ignorato
                 type: string
               hasCloudInitDisk:
                 type: boolean
+              licenseType:
+                type: string
+              licenseUserSecretName:
+                type: string
               ports:
                 items:
                   properties:
@@ -58,8 +64,6 @@ spec:
                       type: integer
                     name:
                       type: string
-                    networkName:
-                      type: string
                     uplinkInterface:
                       type: string
                     vlanID:
@@ -68,12 +72,13 @@ spec:
                   required:
                   - index
                   - name
-                  - networkName
                   type: object
                 type: array
               pvcStorageClass:
                 description: foo is an example field of Firewall. Edit firewall_types.go
                   to remove/update
+                type: string
+              s3BucketName:
                 type: string
               type:
                 type: string
@@ -82,8 +87,11 @@ spec:
               vmUUID:
                 type: string
             required:
+            - awsCredentialSecretName
+            - licenseType
             - ports
             - pvcStorageClass
+            - s3BucketName
             - type
             - version
             type: object
@@ -159,6 +167,10 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              token:
+                type: string
+            required:
+            - token
             type: object
         required:
         - spec

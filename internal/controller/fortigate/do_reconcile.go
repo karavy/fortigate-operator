@@ -13,10 +13,9 @@ import (
 	secretsutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/secretsutils"
 	s3utils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/s3utils"
 	sshutils "github.com/karavy/k8s-operator-fortigate/internal/controller/fortigate/sshutils"
-	pvcutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/pvcutils"
 )
 
-func DoFirewallStartup(ctx context.Context, r client.Client, req ctrl.Request, instance *k8sdinovaonev1.FortigateFirewall, schema runtime.Scheme) (k8sdinovaonev1.FortigateFirewallStatus, error) {
+func DoFirewallStartup(ctx context.Context, r client.Client, req ctrl.Request, instance *k8sdinovaonev1.Firewall, schema runtime.Scheme) (k8sdinovaonev1.FortigateFirewallStatus, error) {
 	awsCredentialSecretName := instance.Spec.AWSCredentialSecretName
 
 	if awsCredentialSecretName == "" {
@@ -44,24 +43,8 @@ func DoFirewallStartup(ctx context.Context, r client.Client, req ctrl.Request, i
 	return statusInfo, nil
 }
 
-func doReconcileFirewall(ctx context.Context, r client.Client, req ctrl.Request, instance *k8sdinovaonev1.FortigateFirewall, schema runtime.Scheme) (k8sdinovaonev1.FortigateFirewallStatus, error) {
+func doReconcileFirewall(ctx context.Context, r client.Client, req ctrl.Request, instance *k8sdinovaonev1.Firewall, schema runtime.Scheme) (k8sdinovaonev1.FortigateFirewallStatus, error) {
 	statusInfo := k8sdinovaonev1.FortigateFirewallStatus{}
-
-	if err := pvcutils.CreateNewFortigateFirewallPVC(instance.Name, instance.Spec.FortigateVersion, instance.Namespace, instance.Spec.PVCStorageClass, ctx, r, "fortigate"); err != nil {
-		fmt.Printf("Errore durante la creazione del PVC: %v\n", err)
-		return statusInfo, err
-	}
-
-	var err error
-	if err = createFortigateFirewall(ctx, instance.Name, instance.Spec.FortigateVersion, instance.Namespace, instance.Spec, r); err != nil {
-		fmt.Printf("Errore durante la creazione del firewall: %v\n", err)
-		return statusInfo, err
-	}
-
-	if err := createFortigateService(ctx, r, instance, r.Scheme()); err != nil {
-		fmt.Printf("Errore durante la creazione del Service: %v\n", err)
-		return statusInfo, err
-	}
 
 	// aspetta che il firewall sia pronto prima di procedere con la registrazione della licenza
 	if sshutils.GetFirewallReady(ctx, r, req, instance) == false {

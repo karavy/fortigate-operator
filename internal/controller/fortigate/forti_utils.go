@@ -4,18 +4,18 @@ import (
 	"context"
 	"fmt"
 
-	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
+	_ "github.com/karavy/k8s-operator-fortigate/api/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
-	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	_ "k8s.io/apimachinery/pkg/api/equality"
+	_ "k8s.io/apimachinery/pkg/api/resource"
+	_ "k8s.io/apimachinery/pkg/apis/meta/v1"
+	_ "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	_ "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -24,9 +24,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 )
-
-
+/*
 func createFortigateService(ctx context.Context, r client.Client, instance *k8sdinovaonev1.FortigateFirewall, scheme *runtime.Scheme) error {
+	
 	svc := createFortigateFirewallService(instance.Name, instance.Spec.FortigateVersion, instance.Namespace)
 	op, err := controllerutil.CreateOrUpdate(ctx, r, svc, func() error {
 		// Imposta il selettore usando il nome dell'istanza corrente
@@ -63,10 +63,13 @@ func createFortigateService(ctx context.Context, r client.Client, instance *k8sd
 	if op != controllerutil.OperationResultNone {
 		fmt.Printf("Service fortios-ssh %s\n", op)
 	}
+	
 
 	return nil
 }
+*/
 
+/*
 func createFortigateFirewallService(firewallName string, fortigateVersion string, namespace string) *v1.Service {
 
 	return &v1.Service{
@@ -97,6 +100,7 @@ func createFortigateFirewallService(firewallName string, fortigateVersion string
 		},
 	}
 }
+*/
 
 func DeleteFortigateFirewallSvc(ctx context.Context, r client.Client, firewallName string, fortigateVersion string, namespace string) error {
 	svcName := fmt.Sprintf("%s-%s-ssh-gui", firewallName, fortigateVersion)
@@ -160,6 +164,7 @@ func DeleteFortigateFirewall(ctx context.Context, r client.Client, firewallName 
 	return err
 }
 
+/*
 func createFortigateFirewall(ctx context.Context, firewallName string, fortigateVersion string, namespace string, spec k8sdinovaonev1.FortigateFirewallSpec, r client.Client) error {
 	existingVM := &kubevirtv1.VirtualMachine{}
 	err := r.Get(ctx, client.ObjectKey{Name: firewallName, Namespace: namespace}, existingVM)
@@ -324,7 +329,7 @@ func createFortigateManifest(firewallName string, fortigateVersion string, names
 							VolumeSource: kubevirtv1.VolumeSource{
 								PersistentVolumeClaim: &kubevirtv1.PersistentVolumeClaimVolumeSource{
 									PersistentVolumeClaimVolumeSource: v1.PersistentVolumeClaimVolumeSource{
-										ClaimName: fmt.Sprintf("%s-%s-fgt", firewallName, fortigateVersion),
+										ClaimName: fmt.Sprintf("%s-%s", firewallName, fortigateVersion),
 									},
 								},
 							},
@@ -349,6 +354,7 @@ func createFortigateManifest(firewallName string, fortigateVersion string, names
 
 	return (vm)
 }
+*/
 
 func restartFortigateVM(ctx context.Context, firewallName string, namespace string, r client.Client) error {
 	existingVM := &kubevirtv1.VirtualMachine{}

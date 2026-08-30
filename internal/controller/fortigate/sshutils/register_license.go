@@ -14,7 +14,7 @@ import (
 	secretsutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/secretsutils"
 )
 
-func registerLicense(ctx context.Context, r client.Client, req ctrl.Request, stdin io.WriteCloser, stdout io.Reader, firewallInstance *k8sdinovaonev1.FortigateFirewall) (string, error) {
+func registerLicense(ctx context.Context, r client.Client, req ctrl.Request, stdin io.WriteCloser, stdout io.Reader, firewallInstance *k8sdinovaonev1.Firewall) (string, error) {
 
 	accountID, accountPassword, err := getFortiPortalCredentials(ctx, r, req.Namespace, firewallInstance)
 	if err != nil {
@@ -68,7 +68,7 @@ func registerLicense(ctx context.Context, r client.Client, req ctrl.Request, std
 	return output, nil
 }
 
-func getFortiPortalCredentials(ctx context.Context, r client.Client, namespace string, firewallInstance *k8sdinovaonev1.FortigateFirewall) (username string, password string, err error) {
+func getFortiPortalCredentials(ctx context.Context, r client.Client, namespace string, firewallInstance *k8sdinovaonev1.Firewall) (username string, password string, err error) {
 	portalCredentialSecretName := firewallInstance.Spec.LicenseUserSecretName
 
 	if portalCredentialSecretName == "" {

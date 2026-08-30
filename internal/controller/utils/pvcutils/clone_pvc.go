@@ -48,14 +48,22 @@ func createPVC(firewallType string, firewallName string, version string, namespa
 		return fmt.Errorf("tipo di firewall non supportato: %s", firewallType)
 	}
 	
-	clonePVC(goldenImageFirewallName, firewallName+"-"+version, namespace, storageClassName)
+	if err := clonePVC(goldenImageFirewallName, firewallName+"-"+version, namespace, storageClassName); err != nil {
+		return err
+	}
 	if hasCloudInit {
-		clonePVC(goldenImageCloudInitName, firewallName+"-"+version+"-cloud-init", namespace, storageClassName)
+		if err := clonePVC(goldenImageCloudInitName, firewallName+"-"+version+"-cloud-init", namespace, storageClassName); err != nil {
+			return err
+		}
 	}
 
-	CheckFirewallPVC(firewallName+"-"+version, namespace)
+	if err := checkFirewallPVC(firewallName+"-"+version, namespace); err != nil {
+		return err
+	}
 	if hasCloudInit {
-		CheckFirewallPVC(firewallName+"-"+version+"-cloud-init", namespace)
+		if err := checkFirewallPVC(firewallName+"-"+version+"-cloud-init", namespace); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -98,7 +106,7 @@ func CreateNewFortigateFirewallPVC(firewallName string, version string, namespac
 	return nil
 }
 
-func CheckFirewallPVC(name string, namespace string) error {
+func checkFirewallPVC(name string, namespace string) error {
 	// 1. Configura il caricamento del kubeconfig
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -148,7 +156,7 @@ func DeleteFirewallPVC(ctx context.Context, r client.Client, firewallName string
 		return err
 	}
 
-	pvcToDelete := []string{firewallName + "-" + fortigateVersion + "-fgt", firewallName + "-" + fortigateVersion + "-cloud-init"}
+	pvcToDelete := []string{firewallName + "-" + fortigateVersion, firewallName + "-" + fortigateVersion + "-cloud-init"}
 
 	for _, pvcName := range pvcToDelete {
 		err := clientset.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvcName, metav1.DeleteOptions{})
@@ -182,6 +190,8 @@ func clonePVC(source string, target string, namespace string, storageClass strin
 
 	pvcOrigine := source
 	pvcClonato := target
+	
+	originalSize := pvcOriginalSize(clientset, namespace, pvcOrigine)
 
 	if _, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), pvcClonato, metav1.GetOptions{}); err == nil {
 		fmt.Printf("Il PVC '%s' esiste già, non lo creo.\n", pvcClonato)
@@ -202,7 +212,7 @@ func clonePVC(source string, target string, namespace string, storageClass strin
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					// La dimensione deve essere UGUALI o SUPERIORE al PVC originale
-					corev1.ResourceStorage: pvcOriginalSize(clientset, namespace, pvcOrigine),
+					corev1.ResourceStorage: originalSize,
 				},
 			},
 			// QUESO BLOCCO ABILITA IL CLONING NATIVO
@@ -235,7 +245,7 @@ func clonePVC(source string, target string, namespace string, storageClass strin
 func pvcOriginalSize(clientset *kubernetes.Clientset, namespace, name string) resource.Quantity {
 	origPvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		log.Printf("Impossibile recuperare il PVC di origine per verificarne la dimensione: %v", err)
+		log.Printf("Impossibile recuperare il PVC %s di origine per verificarne la dimensione: %v", name, err)
 		return resource.Quantity{}
 	}
 	return origPvc.Spec.Resources.Requests[corev1.ResourceStorage]

@@ -1,4 +1,4 @@
-package controller
+package vmmanagement
 
 import (
 	"context"
@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
-	
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
@@ -20,18 +21,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	fortigate "github.com/karavy/k8s-operator-fortigate/internal/controller/fortigate"
 	pvcutils "github.com/karavy/k8s-operator-fortigate/internal/controller/utils/pvcutils"
 )
 
-func createFirewall(r *FirewallReconciler, ctx context.Context, instance *k8sdinovaonev1.Firewall, portsNADs []firewallPortNAD) (k8sdinovaonev1.FirewallStatus, error) {
+type FirewallPortNAD struct {
+	BridgeName string
+	PortName   string
+}
+
+func CreateFirewall(r client.Client, ctx context.Context, req reconcile.Request, s runtime.Scheme, instance *k8sdinovaonev1.Firewall, portsNADs []FirewallPortNAD) (k8sdinovaonev1.FirewallStatus, error) {
 	statusInfo := k8sdinovaonev1.FirewallStatus{}
 
-	if err := pvcutils.CreateNewFirewallPVC(ctx, r.Client, instance); err != nil {
+	if err := pvcutils.CreateNewFirewallPVC(ctx, r, instance); err != nil {
 		fmt.Printf("Errore durante la creazione del PVC: %v\n", err)
 		return statusInfo, err
 	}
@@ -45,10 +53,19 @@ func createFirewall(r *FirewallReconciler, ctx context.Context, instance *k8sdin
 		return statusInfo, err
 	}
 
+	switch instance.Spec.Type {
+	case "fortigate":
+		fortigate.DoFirewallStartup(ctx, r, req, instance, s)
+	case "vyos":
+		// handle vyos
+	default:
+		fmt.Printf("Tipo di firewall non valido: %s\n", instance.Spec.Type)
+		return statusInfo, fmt.Errorf("tipo di firewall non valido: %s", instance.Spec.Type)
+	}
 	return statusInfo, nil
 }
 
-func createVMFirewall(ctx context.Context, r *FirewallReconciler, instance *k8sdinovaonev1.Firewall, portsNADs []firewallPortNAD) error {
+func createVMFirewall(ctx context.Context, r client.Client, instance *k8sdinovaonev1.Firewall, portsNADs []FirewallPortNAD) error {
 	firewallName :=  instance.Name
 	firewallVersion := instance.Spec.Version
 	namespace := instance.Namespace
@@ -76,7 +93,7 @@ func createVMFirewall(ctx context.Context, r *FirewallReconciler, instance *k8sd
 
 			fmt.Println("VMI aggiornata con successo, riavvio della VM")
 
-			if err := r.restartVM(ctx, firewallName, namespace); err != nil {
+			if err := restartVM(ctx, r, firewallName, namespace); err != nil {
 				fmt.Printf("Errore durante il riavvio della VM: %v\n", err)
 				return err
 			}
@@ -100,9 +117,9 @@ func createVMFirewall(ctx context.Context, r *FirewallReconciler, instance *k8sd
 	return nil
 }
 
-func createK8sFirewallService(ctx context.Context, r *FirewallReconciler, instance *k8sdinovaonev1.Firewall) error {
+func createK8sFirewallService(ctx context.Context, r client.Client, instance *k8sdinovaonev1.Firewall) error {
 	svc := createFirewallService(instance.Name, instance.Spec.Version, instance.Namespace)
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
+	op, err := controllerutil.CreateOrUpdate(ctx, r, svc, func() error {
 		// Imposta il selettore usando il nome dell'istanza corrente
 		svc.Spec.Selector = map[string]string{
 			"vmi.kubevirt.io/id": fmt.Sprintf("%s", instance.Name), // Assicurati che questa label corrisponda a quella usata nella VMI
@@ -127,7 +144,7 @@ func createK8sFirewallService(ctx context.Context, r *FirewallReconciler, instan
 		}
 
 		// Imposta l'Owner Reference (Legame di parentela)
-		return controllerutil.SetControllerReference(instance, svc, r.Scheme)
+		return controllerutil.SetControllerReference(instance, svc, r.Scheme())
 	})
 
 	if err != nil {
@@ -175,7 +192,7 @@ func createFirewallService(firewallName string, firewallVersion string, namespac
 	}
 }
 
-func DeleteFirewallSvc(ctx context.Context, r *FirewallReconciler, firewallName string, firewallVersion string, namespace string) error {
+func DeleteFirewallSvc(ctx context.Context, r client.Client, firewallName string, firewallVersion string, namespace string) error {
 	svcName := fmt.Sprintf("%s-%s-ssh-gui", firewallName, firewallVersion)
 	svc := &v1.Service{}
 	err := r.Get(ctx, types.NamespacedName{Name: svcName, Namespace: namespace}, svc)
@@ -194,7 +211,7 @@ func DeleteFirewallSvc(ctx context.Context, r *FirewallReconciler, firewallName 
 	return nil
 }
 
-func DeleteFirewall(ctx context.Context, r *FirewallReconciler, firewallName string, firewallVersion string, namespace string) error {
+func DeleteFirewall(ctx context.Context, r client.Client, firewallName string, firewallVersion string, namespace string) error {
 	vm := &unstructured.Unstructured{}
 	vm.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "kubevirt.io",
@@ -237,7 +254,7 @@ func DeleteFirewall(ctx context.Context, r *FirewallReconciler, firewallName str
 	return err
 }
 
-func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface, portsNADs []firewallPortNAD) ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {
+func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface, portsNADs []FirewallPortNAD) ([]kubevirtv1.Interface, []kubevirtv1.Network, error) {
 	var interfaces []kubevirtv1.Interface
 	var networks []kubevirtv1.Network
 
@@ -264,7 +281,7 @@ func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface, portsNA
 
 	for _, port := range portsNADs {
 		interfaces = append(interfaces, kubevirtv1.Interface{
-			Name:  port.portName,
+			Name:  port.PortName,
 			Model: "virtio",
 			InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
 				Bridge: &kubevirtv1.InterfaceBridge{},
@@ -272,10 +289,10 @@ func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface, portsNA
 		})
 
 		networks = append(networks, kubevirtv1.Network{
-			Name: port.portName,
+			Name: port.PortName,
 			NetworkSource: kubevirtv1.NetworkSource{
 				Multus: &kubevirtv1.MultusNetwork{
-					NetworkName: port.bridgeName,
+					NetworkName: port.BridgeName,
 				},
 			},
 		})
@@ -284,7 +301,7 @@ func createFirewallManifestNIC(ports []k8sdinovaonev1.FirewallInterface, portsNA
 	return interfaces, networks, nil
 }
 
-func createManifest(firewallName string, firewallVersion string, namespace string, spec k8sdinovaonev1.FirewallSpec, portsNADs []firewallPortNAD) *kubevirtv1.VirtualMachine {
+func createManifest(firewallName string, firewallVersion string, namespace string, spec k8sdinovaonev1.FirewallSpec, portsNADs []FirewallPortNAD) *kubevirtv1.VirtualMachine {
 	// Definiamo un puntatore a zero per il termination grace period
 	var gracePeriod int64 = 0
 	runStrategy := kubevirtv1.RunStrategyAlways
@@ -413,7 +430,7 @@ func createManifest(firewallName string, firewallVersion string, namespace strin
 	return (vm)
 }
 
-func (r *FirewallReconciler) restartVM(ctx context.Context, firewallName string, namespace string) error {
+func restartVM(ctx context.Context, r client.Client, firewallName string, namespace string) error {
 	existingVM := &kubevirtv1.VirtualMachine{}
 	err := r.Get(ctx, client.ObjectKey{Name: firewallName, Namespace: namespace}, existingVM)
 	if err != nil {

@@ -112,7 +112,7 @@ func (r *FortigateFirewallReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	statusInfo, err := fortigate.DoFirewallStartup(ctx, r.Client, req, instance, *r.Scheme)
+	/*statusInfo, err := fortigate.DoFirewallStartup(ctx, r.Client, req, instance, *r.Scheme)
 	if err != nil {
 		fmt.Printf("Errore durante la creazione del firewall: %v\n", err)
 		return ctrl.Result{}, err
@@ -122,7 +122,7 @@ func (r *FortigateFirewallReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if err != nil {
 		fmt.Println("Errore nell'aggiornamento dello stato del firewall")
 		return ctrl.Result{}, err // Ritorna l'errore per fare il requeue
-	}
+	}*/
 
 	return ctrl.Result{}, nil
 }

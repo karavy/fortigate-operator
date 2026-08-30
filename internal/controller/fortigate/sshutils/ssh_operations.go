@@ -24,9 +24,9 @@ const (
 	UPGRADEFIRMWARE_API
 )
 
-func DoSSHOperations(ctx context.Context, r client.Client, req ctrl.Request, operation SSHOperations, instance *k8sdinovaonev1.FortigateFirewall) (any, error) {
+func DoSSHOperations(ctx context.Context, r client.Client, req ctrl.Request, operation SSHOperations, instance *k8sdinovaonev1.Firewall) (any, error) {
 	// 1. Configura i parametri di connessione
-	fortiIP := fmt.Sprintf("%s-%s-ssh-gui.%s.svc.cluster.local:22", instance.Name, instance.Spec.FortigateVersion, instance.Namespace)
+	fortiIP := fmt.Sprintf("%s-%s-ssh-gui.%s.svc.cluster.local:22", instance.Name, instance.Spec.Version, instance.Namespace)
 	sshUser := "admin"
 	//firewallName := instance.Name
 

@@ -105,7 +105,7 @@ curl -skSL https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/v4.13
 
 # Upload dell'immagine Fortigate e del disco cloud init
 
-/bin/virtctl image-upload pvc fortios-v766m-build3652-fgt --uploadproxy-url https://<IP_SERVIZIO_cdi-uploadproxy-ext_cdi> --size 5Gi --insecure --image-path /tmp/fortios.qcow2
+/bin/virtctl image-upload pvc fortios-v766m-build3652-fgt --uploadproxy-url https://<IP_SERVIZIO_cdi-uploadproxy-ext_cdi> --size 5Gi --insecure --image-path /tmp/fortios.out
 
 /bin/virtctl image-upload pvc fortios-v766m-build3652-cloud-init  --size 1Gi  --insecure --image-path /tmp/fgt-bootstrap.iso --uploadproxy-url https://<IP_SERVIZIO_cdi-uploadproxy-ext_cdi>
 

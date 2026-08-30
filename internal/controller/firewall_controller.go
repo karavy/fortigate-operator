@@ -38,6 +38,7 @@ import (
 	k8sdinovaonev1 "github.com/karavy/k8s-operator-fortigate/api/v1"
 
 	_ "github.com/karavy/k8s-operator-fortigate/internal/controller/vyos"
+	vmmanagement "github.com/karavy/k8s-operator-fortigate/internal/controller/vmmanagement"
 )
 
 const (
@@ -45,11 +46,6 @@ const (
 	reasonNADConflict         = "NetworkAttachmentDefinitionConflict"
 	reasonNetworkProvisioned  = "NetworkProvisioned"
 )
-
-type firewallPortNAD struct {
-	bridgeName string
-	portName   string
-}
 
 type nadConflictError struct {
 	msg string
@@ -90,7 +86,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, fmt.Errorf("ensureNodeBridges: %w", err)
 	}
 
-	var portsNADs []firewallPortNAD
+	var portsNADs []vmmanagement.FirewallPortNAD
 
 	if ps, conflictErr := r.ensureNetworkAttachmentDefinitions(ctx, &fw, bridgeName); conflictErr != nil {
 		var nadConflict *nadConflictError
@@ -156,7 +152,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	_, err := createFirewall(r, ctx, &fw, portsNADs)
+	_, err := vmmanagement.CreateFirewall(r.Client, ctx, req, *r.Scheme, &fw, portsNADs)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -192,10 +188,10 @@ func (r *FirewallReconciler) ensureNodeBridges(ctx context.Context, fw *k8sdinov
 	return nil
 }
 
-func (r *FirewallReconciler) ensureNetworkAttachmentDefinitions(ctx context.Context, fw *k8sdinovaonev1.Firewall, bridgeName string) ([]firewallPortNAD, error) {
+func (r *FirewallReconciler) ensureNetworkAttachmentDefinitions(ctx context.Context, fw *k8sdinovaonev1.Firewall, bridgeName string) ([]vmmanagement.FirewallPortNAD, error) {
 	logger := logf.FromContext(ctx)
 
-	var portsNADs []firewallPortNAD
+	var portsNADs []vmmanagement.FirewallPortNAD
 
 	var nadGVK = schema.GroupVersionKind{
 		Group:   "k8s.cni.cncf.io",
@@ -247,9 +243,9 @@ func (r *FirewallReconciler) ensureNetworkAttachmentDefinitions(ctx context.Cont
 		nad.SetName(nadName)
 		nad.SetNamespace(fw.Namespace)
 
-		portsNADs = append(portsNADs, firewallPortNAD{
-			bridgeName: nadName,
-			portName:   port.Name,})
+		portsNADs = append(portsNADs, vmmanagement.FirewallPortNAD{
+			BridgeName: nadName,
+			PortName:   port.Name,})
 
 		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, nad, func() error {
 			nad.SetLabels(map[string]string{
